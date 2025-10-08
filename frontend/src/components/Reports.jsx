@@ -35,7 +35,7 @@ const LoginModal = ({ show, onHide, onSuccess }) => {
         password: formData.password,
         role: formData.role,
       };
-      const res = await axios.post('http://localhost:5000/api/auth/login', payload);
+      const res = await axios.post('https://matsepe.onrender.com/api/auth/login', payload);
       const { id, username, role, token } = res.data;
       const allowedRoles = ['Lecturer', 'PRL', 'Program Leader', 'Student'];
       if (!allowedRoles.includes(role)) {
@@ -172,7 +172,7 @@ const Reports = () => {
   useEffect(() => {
     const fetchPublicStats = async () => {
       try {
-        const res = await axios.get('http://localhost:5000/api/reports/public-stats');
+        const res = await axios.get('https://matsepe.onrender.com/api/reports/public-stats');
         setPublicStats(res.data);
       } catch (err) {
         setPublicStats({
@@ -244,14 +244,14 @@ const Reports = () => {
       }
       const headers = { Authorization: `Bearer ${token}` };
       const requests = [
-        axios.get('http://localhost:5000/api/reports', { headers }),
-        axios.get('http://localhost:5000/api/courses', { headers }),
+        axios.get('https://matsepe.onrender.com/api/reports', { headers }),
+        axios.get('https://matsepe.onrender.com/api/courses', { headers }),
       ];
       if (currentUser?.role === 'PRL' || currentUser?.role === 'Program Leader') {
-        requests.push(axios.get('http://localhost:5000/api/users?role=Lecturer', { headers }));
+        requests.push(axios.get('https://matsepe.onrender.com/api/users?role=Lecturer', { headers }));
       }
       if (currentUser?.role === 'Student') {
-        requests.push(axios.get('http://localhost:5000/api/users?role=Student', { headers }));
+        requests.push(axios.get('https://matsepe.onrender.com/api/users?role=Student', { headers }));
       }
       const [reportsRes, coursesRes, ...otherRes] = await Promise.all(requests);
       setReports(reportsRes.data || []);
@@ -339,7 +339,7 @@ const Reports = () => {
     };
     try {
       const token = localStorage.getItem('token');
-      await axios.post('http://localhost:5000/api/reports', processedData, {
+      await axios.post('https://matsepe.onrender.com/api/reports', processedData, {
         headers: { Authorization: `Bearer ${token}` },
       });
       showAlert('Report submitted successfully! Waiting for approval.', 'success');
@@ -377,7 +377,7 @@ const Reports = () => {
     try {
       const token = localStorage.getItem('token');
       await axios.put(
-        `http://localhost:5000/api/reports/${reportId}`,
+        `https://matsepe.onrender.com/api/reports/${reportId}`,
         {
           status: action,
           reviewed_by: currentUser?.id,

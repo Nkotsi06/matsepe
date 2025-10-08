@@ -24,7 +24,7 @@ const AuthModal = ({ show, onClose, onSuccess }) => {
       setAuthError('');
       const endpoint = isRegister ? '/api/auth/register' : '/api/auth/login';
      
-      const res = await axios.post(`http://localhost:5000${endpoint}`, formData);
+      const res = await axios.post(`https://matsepe.onrender.com${endpoint}`, formData);
      
       if (isRegister) {
         onSuccess(res.data);
@@ -910,7 +910,7 @@ const PublicDashboard = ({ setShowLoginModal }) => {
   const fetchPublicStats = async () => {
     try {
       // Fetch public statistics from the backend
-      const response = await axios.get('http://localhost:5000/api/public/stats');
+      const response = await axios.get('https://matsepe.onrender.com/api/public/stats');
       setPublicStats(response.data);
     } catch (error) {
       console.error('Error fetching public stats:', error);
@@ -1074,7 +1074,7 @@ const ProgramLeader = () => {
   const [ratingSearch, setRatingSearch] = useState('');
   const [currentUser, setCurrentUser] = useState(null);
 
-  const API_URL = 'http://localhost:5000/api';
+  const API_URL = 'https://matsepe.onrender.com/api';
 
   useEffect(() => {
     checkAuthentication();

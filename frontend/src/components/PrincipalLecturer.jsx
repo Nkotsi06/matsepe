@@ -88,22 +88,22 @@ const PrincipalLecturer = () => {
 
       // Fetch all data in parallel
       const [reportsRes, coursesRes, ratingsRes, classesRes, lecturersRes, lecturesRes] = await Promise.all([
-        axios.get('http://localhost:5000/api/principal/reports', {
+        axios.get('https://matsepe.onrender.com/api/principal/reports', {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        axios.get('http://localhost:5000/api/principal/courses', {
+        axios.get('https://matsepe.onrender.com/api/principal/courses', {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        axios.get('http://localhost:5000/api/principal/ratings', {
+        axios.get('https://matsepe.onrender.com/api/principal/ratings', {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        axios.get('http://localhost:5000/api/principal/classes', {
+        axios.get('https://matsepe.onrender.com/api/principal/classes', {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        axios.get('http://localhost:5000/api/principal/lecturers', {
+        axios.get('https://matsepe.onrender.com/api/principal/lecturers', {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        axios.get('http://localhost:5000/api/principal/lectures', {
+        axios.get('https://matsepe.onrender.com/api/principal/lectures', {
           headers: { Authorization: `Bearer ${token}` },
         })
       ]);
@@ -135,7 +135,7 @@ const PrincipalLecturer = () => {
         return;
       }
       await axios.post(
-        'http://localhost:5000/api/principal/courses',
+        'https://matsepe.onrender.com/api/principal/courses',
         courseData,
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -165,7 +165,7 @@ const PrincipalLecturer = () => {
         return;
       }
       await axios.put(
-        `http://localhost:5000/api/principal/courses/${selectedCourse?.id}`,
+        `https://matsepe.onrender.com/api/principal/courses/${selectedCourse?.id}`,
         courseData,
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -197,7 +197,7 @@ const PrincipalLecturer = () => {
           return;
         }
         await axios.delete(
-          `http://localhost:5000/api/principal/courses/${courseId}`,
+          `https://matsepe.onrender.com/api/principal/courses/${courseId}`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -219,7 +219,7 @@ const PrincipalLecturer = () => {
         return;
       }
       await axios.post(
-        'http://localhost:5000/api/principal/classes',
+        'https://matsepe.onrender.com/api/principal/classes',
         classData,
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -249,7 +249,7 @@ const PrincipalLecturer = () => {
         return;
       }
       await axios.put(
-        `http://localhost:5000/api/principal/classes/${selectedClass?.id}`,
+        `https://matsepe.onrender.com/api/principal/classes/${selectedClass?.id}`,
         classData,
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -281,7 +281,7 @@ const PrincipalLecturer = () => {
           return;
         }
         await axios.delete(
-          `http://localhost:5000/api/principal/classes/${classId}`,
+          `https://matsepe.onrender.com/api/principal/classes/${classId}`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -303,7 +303,7 @@ const PrincipalLecturer = () => {
         return;
       }
       await axios.post(
-        'http://localhost:5000/api/principal/lectures',
+        'https://matsepe.onrender.com/api/principal/lectures',
         lectureData,
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -332,7 +332,7 @@ const PrincipalLecturer = () => {
           return;
         }
         await axios.delete(
-          `http://localhost:5000/api/principal/lectures/${lectureId}`,
+          `https://matsepe.onrender.com/api/principal/lectures/${lectureId}`,
           {
             headers: { Authorization: `Bearer ${token}` },
           }
@@ -528,7 +528,7 @@ const PrincipalLecturer = () => {
         return;
       }
       await axios.put(
-        `http://localhost:5000/api/principal/reports/${selectedReport?.id}`,
+        `https://matsepe.onrender.com/api/principal/reports/${selectedReport?.id}`,
         { feedback },
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -551,7 +551,7 @@ const PrincipalLecturer = () => {
         return;
       }
       await axios.post(
-        'http://localhost:5000/api/principal/ratings',
+        'https://matsepe.onrender.com/api/principal/ratings',
         ratingData,
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -1962,7 +1962,7 @@ const AuthModal = ({ show, onClose, onSuccess }) => {
     try {
       setAuthError('');
       const endpoint = isRegister ? '/api/auth/register' : '/api/auth/login';
-      const res = await axios.post(`http://localhost:5000${endpoint}`, formData);
+      const res = await axios.post(`https://matsepe.onrender.com${endpoint}`, formData);
       if (isRegister) {
         onSuccess(res.data);
       } else {

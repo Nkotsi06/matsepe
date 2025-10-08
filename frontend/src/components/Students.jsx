@@ -58,7 +58,7 @@ const Students = ({ onProtectedAction }) => {
 
   const fetchPublicStatistics = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/student/public-statistics');
+      const res = await axios.get('https://matsepe.onrender.com/api/student/public-statistics');
       setStatistics(res.data || {
         activeStudents: 0,
         courses: 0,
@@ -81,22 +81,22 @@ const Students = ({ onProtectedAction }) => {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const coursesRes = await axios.get('http://localhost:5000/api/student/courses', {
+      const coursesRes = await axios.get('https://matsepe.onrender.com/api/student/courses', {
         headers: { Authorization: `Bearer ${token}` }
       });
       setCourses(coursesRes.data || []);
 
-      const selfRatingsRes = await axios.get('http://localhost:5000/api/ratings/self', {
+      const selfRatingsRes = await axios.get('https://matsepe.onrender.com/api/ratings/self', {
         headers: { Authorization: `Bearer ${token}` }
       });
       setSelfRatings(selfRatingsRes.data || []);
 
-      const courseRatingsRes = await axios.get('http://localhost:5000/api/ratings/course', {
+      const courseRatingsRes = await axios.get('https://matsepe.onrender.com/api/ratings/course', {
         headers: { Authorization: `Bearer ${token}` }
       });
       setCourseRatings(courseRatingsRes.data || []);
 
-      const reportsRes = await axios.get('http://localhost:5000/api/student/reports', {
+      const reportsRes = await axios.get('https://matsepe.onrender.com/api/student/reports', {
         headers: { Authorization: `Bearer ${token}` }
       });
       setReports(reportsRes.data || []);
@@ -274,7 +274,7 @@ const Students = ({ onProtectedAction }) => {
         return;
       }
       
-      const response = await axios.post('http://localhost:5000/api/ratings/self', {
+      const response = await axios.post('https://matsepe.onrender.com/api/ratings/self', {
         course_id: ratingForm.course_id,
         rating: parseInt(ratingForm.rating),
         comment: ratingForm.comment
@@ -303,7 +303,7 @@ const Students = ({ onProtectedAction }) => {
         return;
       }
       
-      const response = await axios.post('http://localhost:5000/api/ratings/course', {
+      const response = await axios.post('https://matsepe.onrender.com/api/ratings/course', {
         course_id: ratingForm.course_id,
         rating: parseInt(ratingForm.rating),
         comment: ratingForm.comment
@@ -332,7 +332,7 @@ const Students = ({ onProtectedAction }) => {
         return;
       }
       
-      const response = await axios.post('http://localhost:5000/api/student/reports', {
+      const response = await axios.post('https://matsepe.onrender.com/api/student/reports', {
         course_id: reportForm.course_id,
         report_type: reportForm.report_type,
         title: reportForm.title,
@@ -1131,9 +1131,9 @@ const AuthModal = ({ show, onClose, onSuccess }) => {
         ? { ...formData, role: normalizedRole }
         : { username: formData.username, password: formData.password, role: normalizedRole };
 
-      console.log('Sending to:', `http://localhost:5000${endpoint}`, 'Data:', dataToSend);
+      console.log('Sending to:', `https://matsepe.onrender.com${endpoint}`, 'Data:', dataToSend);
 
-      const res = await axios.post(`http://localhost:5000${endpoint}`, dataToSend);
+      const res = await axios.post(`https://matsepe.onrender.com${endpoint}`, dataToSend);
       console.log('Response:', res.data);
 
       if (res.data.token) {

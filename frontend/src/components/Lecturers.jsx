@@ -62,32 +62,32 @@ const Lecturers = ({ onProtectedAction }) => {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const coursesRes = await axios.get('http://localhost:5000/api/lecturer/courses', {
+      const coursesRes = await axios.get('https://matsepe.onrender.com/api/lecturer/courses', {
         headers: { Authorization: `Bearer ${token}` }
       });
       setCourses(coursesRes.data || []);
 
-      const classesRes = await axios.get('http://localhost:5000/api/lecturer/classes', {
+      const classesRes = await axios.get('https://matsepe.onrender.com/api/lecturer/classes', {
         headers: { Authorization: `Bearer ${token}` }
       });
       setClasses(classesRes.data || []);
 
-      const reportsRes = await axios.get('http://localhost:5000/api/lecturer/reports', {
+      const reportsRes = await axios.get('https://matsepe.onrender.com/api/lecturer/reports', {
         headers: { Authorization: `Bearer ${token}` }
       });
       setReports(reportsRes.data || []);
 
-      const ratingsRes = await axios.get('http://localhost:5000/api/lecturer/ratings', {
+      const ratingsRes = await axios.get('https://matsepe.onrender.com/api/lecturer/ratings', {
         headers: { Authorization: `Bearer ${token}` }
       });
       setRatings(ratingsRes.data || []);
 
-      const lecturersRes = await axios.get('http://localhost:5000/api/users?role=Lecturer', {
+      const lecturersRes = await axios.get('https://matsepe.onrender.com/api/users?role=Lecturer', {
         headers: { Authorization: `Bearer ${token}` }
       });
       setLecturers(lecturersRes.data || []);
 
-      const statsRes = await axios.get('http://localhost:5000/api/lecturer/statistics', {
+      const statsRes = await axios.get('https://matsepe.onrender.com/api/lecturer/statistics', {
         headers: { Authorization: `Bearer ${token}` }
       });
       setStatistics(statsRes.data || {
@@ -269,7 +269,7 @@ const Lecturers = ({ onProtectedAction }) => {
         lecturer_name: reportForm.lecturer_name || currentUser.username
       };
       
-      await axios.post('http://localhost:5000/api/lecturer/reports', formData, {
+      await axios.post('https://matsepe.onrender.com/api/lecturer/reports', formData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -1077,9 +1077,9 @@ const AuthModal = ({ show, onClose, onSuccess }) => {
         ? { ...formData, role: normalizedRole }
         : { username: formData.username, password: formData.password, role: normalizedRole };
 
-      console.log('Sending to:', `http://localhost:5000${endpoint}`, 'Data:', dataToSend);
+      console.log('Sending to:', `https://matsepe.onrender.com${endpoint}`, 'Data:', dataToSend);
 
-      const res = await axios.post(`http://localhost:5000${endpoint}`, dataToSend);
+      const res = await axios.post(`https://matsepe.onrender.com${endpoint}`, dataToSend);
       console.log('Response:', res.data);
 
       if (res.data.token) {

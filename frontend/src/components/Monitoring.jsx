@@ -98,10 +98,10 @@ const Monitoring = () => {
       const headers = { Authorization: `Bearer ${token}` };
 
       const [coursesRes, lecturersRes, ratingsRes, reportsRes] = await Promise.all([
-        axios.get('http://localhost:5000/api/courses', { headers }),
-        axios.get('http://localhost:5000/api/users?role=Lecturer', { headers }),
-        axios.get('http://localhost:5000/api/ratings', { headers }),
-        axios.get('http://localhost:5000/api/reports', { headers })
+        axios.get('https://matsepe.onrender.com/api/courses', { headers }),
+        axios.get('https://matsepe.onrender.com/api/users?role=Lecturer', { headers }),
+        axios.get('https://matsepe.onrender.com/api/ratings', { headers }),
+        axios.get('https://matsepe.onrender.com/api/reports', { headers })
       ]);
 
       setCourses(coursesRes.data || []);
@@ -132,7 +132,7 @@ const Monitoring = () => {
     setLoading(true);
     try {
       const [statsRes] = await Promise.all([
-        axios.get('http://localhost:5000/api/monitoring/public-stats')
+        axios.get('https://matsepe.onrender.com/api/monitoring/public-stats')
       ]);
 
       setPublicStats(statsRes.data || {});
@@ -332,7 +332,7 @@ const Monitoring = () => {
         setAuthError('');
         const endpoint = isRegister ? '/api/auth/register' : '/api/auth/login';
        
-        const res = await axios.post(`http://localhost:5000${endpoint}`, formData);
+        const res = await axios.post(`https://matsepe.onrender.com${endpoint}`, formData);
        
         if (isRegister) {
           onSuccess(res.data);

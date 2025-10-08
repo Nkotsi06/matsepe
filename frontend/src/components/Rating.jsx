@@ -56,7 +56,7 @@ const Rating = () => {
   // Fetch public data
   const fetchPublicData = async () => {
     try {
-      const res = await axios.get('http://localhost:5000/api/ratings/public');
+      const res = await axios.get('https://matsepe.onrender.com/api/ratings/public');
       setPublicStats(res.data);
     } catch (err) {
       console.log('Public data not available, using default stats');
@@ -78,20 +78,20 @@ const Rating = () => {
       const headers = { Authorization: `Bearer ${token}` };
       
       // Fetch courses using the new endpoint
-      const coursesRes = await axios.get('http://localhost:5000/api/ratings/courses/list', { headers });
+      const coursesRes = await axios.get('https://matsepe.onrender.com/api/ratings/courses/list', { headers });
       setCourses(coursesRes.data || []);
       
       // Fetch user's course ratings
-      const ratingsRes = await axios.get('http://localhost:5000/api/ratings/course', { headers });
+      const ratingsRes = await axios.get('https://matsepe.onrender.com/api/ratings/course', { headers });
       setRatings(ratingsRes.data || []);
 
       // Note: The following endpoints might not exist in your backend yet
       // You can remove them or implement them in your backend
       try {
         const [lecturersRes, aggregatedRes, trendsRes] = await Promise.all([
-          axios.get('http://localhost:5000/api/lecturers', { headers }).catch(() => ({ data: [] })),
-          axios.get('http://localhost:5000/api/ratings/aggregated', { headers }).catch(() => ({ data: {} })),
-          axios.get('http://localhost:5000/api/ratings/trends', { headers }).catch(() => ({ data: [] }))
+          axios.get('https://matsepe.onrender.com/api/lecturers', { headers }).catch(() => ({ data: [] })),
+          axios.get('https://matsepe.onrender.com/api/ratings/aggregated', { headers }).catch(() => ({ data: {} })),
+          axios.get('https://matsepe.onrender.com/api/ratings/trends', { headers }).catch(() => ({ data: [] }))
         ]);
         
         setLecturers(lecturersRes.data || []);
@@ -211,7 +211,7 @@ const Rating = () => {
         // The user_id is taken from the token in the backend
       };
 
-      await axios.post('http://localhost:5000/api/ratings/course', ratingData, {
+      await axios.post('https://matsepe.onrender.com/api/ratings/course', ratingData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -464,7 +464,7 @@ const Rating = () => {
         setAuthError('');
         const endpoint = isRegister ? '/api/auth/register' : '/api/auth/login';
       
-        const res = await axios.post(`http://localhost:5000${endpoint}`, formData);
+        const res = await axios.post(`https://matsepe.onrender.com${endpoint}`, formData);
       
         if (isRegister) {
           onSuccess(res.data);
