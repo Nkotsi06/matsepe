@@ -5,11 +5,12 @@ require('dotenv').config();
 
 // Create a connection pool
 const pool = new Pool({
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || '1234567', // ✅ Change this to your real PostgreSQL password
-  database: process.env.DB_NAME || 'luct_reporting',
-  port: process.env.DB_PORT || 5432, // PostgreSQL default port
+  host: process.env.DB_HOST,       // e.g. db-1234.us-east-1.render.com
+  user: process.env.DB_USER,       // your DB username
+  password: process.env.DB_PASSWORD, // your DB password
+  database: process.env.DB_NAME,   // your DB name
+  port: process.env.DB_PORT || 5432,
+  ssl: { rejectUnauthorized: false } // required for most cloud providers
 });
 
 // Test the database connection
@@ -17,9 +18,9 @@ const pool = new Pool({
   try {
     const client = await pool.connect();
     console.log('Connected to PostgreSQL database.');
-    client.release(); // release client back to pool
+    client.release();
   } catch (err) {
-    console.error(' Database connection error:', err.message);
+    console.error('Database connection error:', err.message);
   }
 })();
 
