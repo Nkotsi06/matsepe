@@ -18,10 +18,26 @@ const AuthModal = ({ show, onClose, onSuccess }) => {
     role: 'Program Leader'
   });
   const [authError, setAuthError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  // Faculty options
+  const facultyOptions = [
+    "Faculty of Information and Communication Technology",
+    "Faculty of Business Management and Globalisation", 
+    "Faculty of Design and Innovation"
+  ];
 
   const handleSubmit = async () => {
     try {
       setAuthError('');
+      setLoading(true);
+      
+      if (isRegister && !formData.faculty_name) {
+        setAuthError('Please select a faculty');
+        setLoading(false);
+        return;
+      }
+      
       const endpoint = isRegister ? '/api/auth/register' : '/api/auth/login';
      
       const res = await axios.post(`https://matsepe.onrender.com${endpoint}`, formData);
@@ -35,6 +51,8 @@ const AuthModal = ({ show, onClose, onSuccess }) => {
       onClose();
     } catch (err) {
       setAuthError(err.response?.data?.error || 'Authentication failed');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -54,6 +72,7 @@ const AuthModal = ({ show, onClose, onSuccess }) => {
                 variant={formData.role === role ? 'primary' : 'outline-primary'}
                 onClick={() => setFormData({...formData, role})}
                 className="role-btn"
+                disabled={loading}
               >
                 {role}
               </Button>
@@ -69,6 +88,7 @@ const AuthModal = ({ show, onClose, onSuccess }) => {
               onChange={e => setFormData({...formData, username: e.target.value})}
               className="auth-input"
               placeholder="Enter your username"
+              disabled={loading}
             />
           </Form.Group>
           {isRegister && (
@@ -81,17 +101,24 @@ const AuthModal = ({ show, onClose, onSuccess }) => {
                   onChange={e => setFormData({...formData, email: e.target.value})}
                   className="auth-input"
                   placeholder="Enter your email"
+                  disabled={loading}
                 />
               </Form.Group>
               <Form.Group className="mb-3">
                 <Form.Label className="auth-label">Faculty/Department</Form.Label>
-                <Form.Control
-                  type="text"
+                <Form.Select
                   value={formData.faculty_name}
                   onChange={e => setFormData({...formData, faculty_name: e.target.value})}
                   className="auth-input"
-                  placeholder="Enter your faculty/department"
-                />
+                  disabled={loading}
+                >
+                  <option value="">-- Select Faculty --</option>
+                  {facultyOptions.map((faculty, index) => (
+                    <option key={index} value={faculty}>
+                      {faculty}
+                    </option>
+                  ))}
+                </Form.Select>
               </Form.Group>
             </>
           )}
@@ -103,16 +130,17 @@ const AuthModal = ({ show, onClose, onSuccess }) => {
               onChange={e => setFormData({...formData, password: e.target.value})}
               className="auth-input"
               placeholder="Enter your password"
+              disabled={loading}
             />
           </Form.Group>
         </Form>
       </Modal.Body>
       <Modal.Footer className="auth-footer">
-        <Button variant="link" onClick={() => setIsRegister(!isRegister)} className="auth-switch">
+        <Button variant="link" onClick={() => setIsRegister(!isRegister)} className="auth-switch" disabled={loading}>
           {isRegister ? 'Already have an account? Login' : "Don't have an account? Register"}
         </Button>
-        <Button variant="primary" onClick={handleSubmit} className="auth-submit">
-          {isRegister ? 'Create Account' : 'Login'}
+        <Button variant="primary" onClick={handleSubmit} className="auth-submit" disabled={loading}>
+          {loading ? 'Please wait...' : (isRegister ? 'Create Account' : 'Login')}
         </Button>
       </Modal.Footer>
     </Modal>

@@ -36,6 +36,13 @@ const Students = ({ onProtectedAction }) => {
     date: new Date().toISOString().split('T')[0]
   });
 
+  // Faculty options
+  const facultyOptions = [
+    "Faculty of Information and Communication Technology",
+    "Faculty of Business Management and Globalisation", 
+    "Faculty of Design and Innovation"
+  ];
+
   useEffect(() => {
     const token = localStorage.getItem('token');
     const userData = localStorage.getItem('userData');
@@ -365,8 +372,7 @@ const Students = ({ onProtectedAction }) => {
   };
 
   const handleAuthSuccess = (userData) => {
-    // FIX: Handle both response structures
-    const user = userData.user || userData; // Support both {user: {...}} and direct user object
+    const user = userData.user || userData;
     setCurrentUser(user);
     localStorage.setItem('userData', JSON.stringify(user));
     setSuccess(`Welcome, ${user.username}!`);
@@ -509,6 +515,7 @@ const Students = ({ onProtectedAction }) => {
           show={showAuthModal}
           onClose={() => setShowAuthModal(false)}
           onSuccess={handleAuthSuccess}
+          facultyOptions={facultyOptions}
         />
       </div>
     );
@@ -1097,8 +1104,8 @@ const RecentActivity = ({ selfRatings, courseRatings, reports, courses }) => {
   );
 };
 
-// Authentication Modal with Role Mapping - FIXED VERSION
-const AuthModal = ({ show, onClose, onSuccess }) => {
+// Authentication Modal with Faculty Dropdown
+const AuthModal = ({ show, onClose, onSuccess, facultyOptions }) => {
   const [isRegister, setIsRegister] = useState(false);
   const [formData, setFormData] = useState({
     username: '',
@@ -1111,14 +1118,18 @@ const AuthModal = ({ show, onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async () => {
-    // Define endpoint outside try-catch so it's accessible in both
     const endpoint = isRegister ? '/api/auth/register' : '/api/auth/login';
     
     try {
       setAuthError('');
       setLoading(true);
       
-      // Map frontend role names to backend/database ENUM values
+      if (isRegister && !formData.faculty_name) {
+        setAuthError('Please select a faculty');
+        setLoading(false);
+        return;
+      }
+      
       const roleMap = {
         'Student': 'Student',
         'Lecturer': 'Lecturer',
@@ -1139,14 +1150,11 @@ const AuthModal = ({ show, onClose, onSuccess }) => {
       if (res.data.token) {
         localStorage.setItem('token', res.data.token);
         
-        // FIX: Handle both response structures
-        // Backend returns user data directly, not nested under 'user' property
-        const userData = res.data.user || res.data; // Use 'user' if exists, else use entire response
-        
+        const userData = res.data.user || res.data;
         localStorage.setItem('userData', JSON.stringify(userData));
         onSuccess({ 
           token: res.data.token,
-          user: userData // Pass the user data directly
+          user: userData
         });
         onClose();
       } else {
@@ -1160,7 +1168,6 @@ const AuthModal = ({ show, onClose, onSuccess }) => {
         endpoint: endpoint
       });
       
-      // More detailed error handling
       if (err.response?.status === 401) {
         setAuthError('Invalid username or password');
       } else if (err.response?.status === 400) {
@@ -1229,14 +1236,19 @@ const AuthModal = ({ show, onClose, onSuccess }) => {
               </Form.Group>
               <Form.Group className="mb-3">
                 <Form.Label className="auth-label">Faculty</Form.Label>
-                <Form.Control
-                  type="text"
+                <Form.Select
                   value={formData.faculty_name}
                   onChange={e => setFormData({...formData, faculty_name: e.target.value})}
                   className="auth-input"
-                  placeholder="Enter your faculty"
                   disabled={loading}
-                />
+                >
+                  <option value="">-- Select Faculty --</option>
+                  {facultyOptions.map((faculty, index) => (
+                    <option key={index} value={faculty}>
+                      {faculty}
+                    </option>
+                  ))}
+                </Form.Select>
               </Form.Group>
             </>
           )}

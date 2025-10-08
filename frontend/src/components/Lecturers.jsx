@@ -39,6 +39,13 @@ const Lecturers = ({ onProtectedAction }) => {
     recommendations: '',
   });
 
+  // Faculty options
+  const facultyOptions = [
+    "Faculty of Information and Communication Technology",
+    "Faculty of Business Management and Globalisation", 
+    "Faculty of Design and Innovation"
+  ];
+
   useEffect(() => {
     const token = localStorage.getItem('token');
     const userData = localStorage.getItem('userData');
@@ -255,7 +262,7 @@ const Lecturers = ({ onProtectedAction }) => {
   };
 
   const handleReportSubmit = async (e) => {
-    e.preventDefault(); // Prevent default form submission
+    e.preventDefault();
     try {
       const token = localStorage.getItem('token');
       if (!token) {
@@ -263,7 +270,6 @@ const Lecturers = ({ onProtectedAction }) => {
         return;
       }
       
-      // Auto-populate lecturer name if not filled
       const formData = {
         ...reportForm,
         lecturer_name: reportForm.lecturer_name || currentUser.username
@@ -305,7 +311,6 @@ const Lecturers = ({ onProtectedAction }) => {
   };
 
   const handleAuthSuccess = (userData) => {
-    // Handle both response structures
     const user = userData.user || userData;
     setCurrentUser(user);
     localStorage.setItem('userData', JSON.stringify(user));
@@ -440,6 +445,7 @@ const Lecturers = ({ onProtectedAction }) => {
           show={showAuthModal}
           onClose={() => setShowAuthModal(false)}
           onSuccess={handleAuthSuccess}
+          facultyOptions={facultyOptions}
         />
       </div>
     );
@@ -517,6 +523,7 @@ const Lecturers = ({ onProtectedAction }) => {
             reports={reports}
             onExport={exportReportsToExcel}
             currentUser={currentUser}
+            facultyOptions={facultyOptions}
           />
         </Tab>
         <Tab eventKey="ratings" title={<span><i className="fas fa-star me-2"></i>Student Feedback</span>}>
@@ -650,7 +657,7 @@ const ClassesTab = ({ classes, courses }) => {
   );
 };
 
-const ReportingTab = ({ reportForm, setReportForm, courses, onSubmit, reports, onExport, currentUser }) => {
+const ReportingTab = ({ reportForm, setReportForm, courses, onSubmit, reports, onExport, currentUser, facultyOptions }) => {
   const handleFormSubmit = (e) => {
     e.preventDefault();
     onSubmit(e);
@@ -672,21 +679,26 @@ const ReportingTab = ({ reportForm, setReportForm, courses, onSubmit, reports, o
             </Card.Header>
             <Card.Body>
               <Form onSubmit={handleFormSubmit}>
-                {/* Faculty Name */}
+                {/* Faculty Name Dropdown */}
                 <Form.Group className="mb-3">
                   <Form.Label className="form-label">Faculty Name *</Form.Label>
-                  <Form.Control
+                  <Form.Select
                     value={reportForm.faculty_name}
                     onChange={e => setReportForm({ ...reportForm, faculty_name: e.target.value })}
                     className="form-input"
-                    placeholder="Enter faculty name"
                     required
-                  />
+                  >
+                    <option value="">-- Select Faculty --</option>
+                    {facultyOptions.map((faculty, index) => (
+                      <option key={index} value={faculty}>
+                        {faculty}
+                      </option>
+                    ))}
+                  </Form.Select>
                 </Form.Group>
 
                 <Row>
                   <Col md={6}>
-                    {/* Class Name */}
                     <Form.Group className="mb-3">
                       <Form.Label className="form-label">Class Name *</Form.Label>
                       <Form.Control
@@ -699,7 +711,6 @@ const ReportingTab = ({ reportForm, setReportForm, courses, onSubmit, reports, o
                     </Form.Group>
                   </Col>
                   <Col md={6}>
-                    {/* Week of Reporting */}
                     <Form.Group className="mb-3">
                       <Form.Label className="form-label">Week of Reporting *</Form.Label>
                       <Form.Control
@@ -715,7 +726,6 @@ const ReportingTab = ({ reportForm, setReportForm, courses, onSubmit, reports, o
                   </Col>
                 </Row>
 
-                {/* Date of Lecture */}
                 <Form.Group className="mb-3">
                   <Form.Label className="form-label">Date of Lecture *</Form.Label>
                   <Form.Control
@@ -729,7 +739,6 @@ const ReportingTab = ({ reportForm, setReportForm, courses, onSubmit, reports, o
 
                 <Row>
                   <Col md={6}>
-                    {/* Course Name */}
                     <Form.Group className="mb-3">
                       <Form.Label className="form-label">Course Name *</Form.Label>
                       <Form.Control
@@ -742,7 +751,6 @@ const ReportingTab = ({ reportForm, setReportForm, courses, onSubmit, reports, o
                     </Form.Group>
                   </Col>
                   <Col md={6}>
-                    {/* Course Code */}
                     <Form.Group className="mb-3">
                       <Form.Label className="form-label">Course Code *</Form.Label>
                       <Form.Control
@@ -756,7 +764,6 @@ const ReportingTab = ({ reportForm, setReportForm, courses, onSubmit, reports, o
                   </Col>
                 </Row>
 
-                {/* Lecturer's Name */}
                 <Form.Group className="mb-3">
                   <Form.Label className="form-label">Lecturer's Name *</Form.Label>
                   <Form.Control
@@ -770,7 +777,6 @@ const ReportingTab = ({ reportForm, setReportForm, courses, onSubmit, reports, o
 
                 <Row>
                   <Col md={6}>
-                    {/* Actual Students Present */}
                     <Form.Group className="mb-3">
                       <Form.Label className="form-label">Actual Students Present *</Form.Label>
                       <Form.Control
@@ -783,7 +789,6 @@ const ReportingTab = ({ reportForm, setReportForm, courses, onSubmit, reports, o
                     </Form.Group>
                   </Col>
                   <Col md={6}>
-                    {/* Total Registered Students */}
                     <Form.Group className="mb-3">
                       <Form.Label className="form-label">Total Registered Students *</Form.Label>
                       <Form.Control
@@ -799,7 +804,6 @@ const ReportingTab = ({ reportForm, setReportForm, courses, onSubmit, reports, o
 
                 <Row>
                   <Col md={6}>
-                    {/* Venue */}
                     <Form.Group className="mb-3">
                       <Form.Label className="form-label">Venue of Class *</Form.Label>
                       <Form.Control
@@ -812,7 +816,6 @@ const ReportingTab = ({ reportForm, setReportForm, courses, onSubmit, reports, o
                     </Form.Group>
                   </Col>
                   <Col md={6}>
-                    {/* Scheduled Lecture Time */}
                     <Form.Group className="mb-3">
                       <Form.Label className="form-label">Scheduled Lecture Time *</Form.Label>
                       <Form.Control
@@ -826,7 +829,6 @@ const ReportingTab = ({ reportForm, setReportForm, courses, onSubmit, reports, o
                   </Col>
                 </Row>
 
-                {/* Topic Taught */}
                 <Form.Group className="mb-3">
                   <Form.Label className="form-label">Topic Taught *</Form.Label>
                   <Form.Control
@@ -838,7 +840,6 @@ const ReportingTab = ({ reportForm, setReportForm, courses, onSubmit, reports, o
                   />
                 </Form.Group>
 
-                {/* Learning Outcomes */}
                 <Form.Group className="mb-3">
                   <Form.Label className="form-label">Learning Outcomes of the Topic *</Form.Label>
                   <Form.Control
@@ -852,7 +853,6 @@ const ReportingTab = ({ reportForm, setReportForm, courses, onSubmit, reports, o
                   />
                 </Form.Group>
 
-                {/* Lecturer's Recommendations */}
                 <Form.Group className="mb-3">
                   <Form.Label className="form-label">Lecturer's Recommendations</Form.Label>
                   <Form.Control
@@ -1043,8 +1043,8 @@ const RecentActivity = ({ reports, ratings }) => {
   );
 };
 
-// Authentication Modal with Role Mapping - UPDATED VERSION
-const AuthModal = ({ show, onClose, onSuccess }) => {
+// Authentication Modal with Faculty Dropdown
+const AuthModal = ({ show, onClose, onSuccess, facultyOptions }) => {
   const [isRegister, setIsRegister] = useState(false);
   const [formData, setFormData] = useState({
     username: '',
@@ -1057,14 +1057,18 @@ const AuthModal = ({ show, onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async () => {
-    // Define endpoint outside try-catch so it's accessible in both
     const endpoint = isRegister ? '/api/auth/register' : '/api/auth/login';
     
     try {
       setAuthError('');
       setLoading(true);
       
-      // Map frontend role names to backend/database ENUM values
+      if (isRegister && !formData.faculty_name) {
+        setAuthError('Please select a faculty');
+        setLoading(false);
+        return;
+      }
+      
       const roleMap = {
         'Student': 'Student',
         'Lecturer': 'Lecturer',
@@ -1085,9 +1089,7 @@ const AuthModal = ({ show, onClose, onSuccess }) => {
       if (res.data.token) {
         localStorage.setItem('token', res.data.token);
         
-        // Handle both response structures
         const userData = res.data.user || res.data;
-        
         localStorage.setItem('userData', JSON.stringify(userData));
         onSuccess({ 
           token: res.data.token,
@@ -1105,7 +1107,6 @@ const AuthModal = ({ show, onClose, onSuccess }) => {
         endpoint: endpoint
       });
       
-      // More detailed error handling
       if (err.response?.status === 401) {
         setAuthError('Invalid username or password');
       } else if (err.response?.status === 400) {
@@ -1174,14 +1175,19 @@ const AuthModal = ({ show, onClose, onSuccess }) => {
               </Form.Group>
               <Form.Group className="mb-3">
                 <Form.Label className="auth-label">Faculty</Form.Label>
-                <Form.Control
-                  type="text"
+                <Form.Select
                   value={formData.faculty_name}
                   onChange={e => setFormData({...formData, faculty_name: e.target.value})}
                   className="auth-input"
-                  placeholder="Enter your faculty"
                   disabled={loading}
-                />
+                >
+                  <option value="">-- Select Faculty --</option>
+                  {facultyOptions.map((faculty, index) => (
+                    <option key={index} value={faculty}>
+                      {faculty}
+                    </option>
+                  ))}
+                </Form.Select>
               </Form.Group>
             </>
           )}
