@@ -248,8 +248,8 @@ app.get('/api/system-info', (req, res) => {
   });
 });
 
-// 404 handler for API routes
-app.use('/api/*', (req, res) => {
+// 404 handler for API routes (fixed for Express v5)
+app.all('/api/*', (req, res) => {
   res.status(404).json({
     error: 'Endpoint not found',
     path: req.originalUrl,
@@ -271,7 +271,7 @@ app.use('/api/*', (req, res) => {
 });
 
 // Global 404 handler (fixed for Express v5)
-app.use((req, res) => {
+app.all('*', (req, res) => {
   res.status(404).json({
     error: 'Route not found',
     message: `The requested route ${req.originalUrl} does not exist on this server.`,
