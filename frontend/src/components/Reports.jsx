@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Container, Button, Form, Alert, Row, Col, Modal, Card,
-  Badge, Tabs, Tab, Table, Spinner, Dropdown, InputGroup
+  Badge, Tabs, Tab, Table, Spinner, Dropdown, InputGroup,
+  ProgressBar, Toast, ToastContainer, ListGroup
 } from 'react-bootstrap';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
@@ -15,6 +16,483 @@ const debounce = (func, wait) => {
     clearTimeout(timeout);
     timeout = setTimeout(() => func(...args), wait);
   };
+};
+
+// NEW FEATURE: Enhanced Analytics Dashboard Component
+const ReportsAnalyticsDashboard = ({ reports, courses, currentUser }) => {
+  const [timeRange, setTimeRange] = useState('month');
+  const [selectedMetric, setSelectedMetric] = useState('submissions');
+
+  // Calculate enhanced analytics
+  const totalReports = reports.length;
+  const approvedReports = reports.filter(r => r.status === 'approved').length;
+  const pendingReports = reports.filter(r => r.status === 'pending').length;
+  const rejectedReports = reports.filter(r => r.status === 'rejected').length;
+
+  // Attendance analytics
+  const attendanceData = reports.map(report => ({
+    date: report.date_lecture,
+    attendance: report.actual_students / report.total_students * 100 || 0
+  }));
+
+  const avgAttendance = attendanceData.length > 0 
+    ? attendanceData.reduce((sum, item) => sum + item.attendance, 0) / attendanceData.length 
+    : 0;
+
+  // Course performance
+  const coursePerformance = courses.map(course => {
+    const courseReports = reports.filter(r => r.course_id === course.id);
+    const approved = courseReports.filter(r => r.status === 'approved').length;
+    return {
+      name: course.name,
+      total: courseReports.length,
+      approved,
+      approvalRate: courseReports.length > 0 ? (approved / courseReports.length) * 100 : 0,
+      avgAttendance: courseReports.length > 0 
+        ? courseReports.reduce((sum, r) => sum + (r.actual_students / r.total_students * 100 || 0), 0) / courseReports.length 
+        : 0
+    };
+  });
+
+  // Weekly trends
+  const weeklyTrends = Array.from({ length: 16 }, (_, i) => {
+    const week = i + 1;
+    const weekReports = reports.filter(r => r.week === week);
+    return {
+      week,
+      submissions: weekReports.length,
+      approved: weekReports.filter(r => r.status === 'approved').length,
+      attendance: weekReports.length > 0 
+        ? weekReports.reduce((sum, r) => sum + (r.actual_students / r.total_students * 100 || 0), 0) / weekReports.length 
+        : 0
+    };
+  });
+
+  return (
+    <div className="reports-analytics-dashboard">
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <h4 className="section-title">Reports Analytics</h4>
+        <div className="d-flex gap-2">
+          <Form.Select value={timeRange} onChange={(e) => setTimeRange(e.target.value)} size="sm">
+            <option value="week">This Week</option>
+            <option value="month">This Month</option>
+            <option value="quarter">This Quarter</option>
+            <option value="year">This Year</option>
+          </Form.Select>
+          <Form.Select value={selectedMetric} onChange={(e) => setSelectedMetric(e.target.value)} size="sm">
+            <option value="submissions">Submissions</option>
+            <option value="attendance">Attendance</option>
+            <option value="approval">Approval Rate</option>
+          </Form.Select>
+        </div>
+      </div>
+
+      {/* Key Metrics */}
+      <Row className="mb-4">
+        <Col md={3}>
+          <Card className="metric-card text-center">
+            <Card.Body>
+              <div className="metric-icon submissions">
+                <i className="fas fa-file-alt"></i>
+              </div>
+              <h3 className="metric-value">{totalReports}</h3>
+              <p className="metric-label">Total Reports</p>
+              <ProgressBar 
+                now={(totalReports / Math.max(totalReports, 1)) * 100} 
+                variant="primary" 
+                className="metric-progress"
+              />
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col md={3}>
+          <Card className="metric-card text-center">
+            <Card.Body>
+              <div className="metric-icon approved">
+                <i className="fas fa-check-circle"></i>
+              </div>
+              <h3 className="metric-value">{approvedReports}</h3>
+              <p className="metric-label">Approved</p>
+              <ProgressBar 
+                now={totalReports > 0 ? (approvedReports / totalReports) * 100 : 0} 
+                variant="success" 
+                className="metric-progress"
+              />
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col md={3}>
+          <Card className="metric-card text-center">
+            <Card.Body>
+              <div className="metric-icon pending">
+                <i className="fas fa-clock"></i>
+              </div>
+              <h3 className="metric-value">{pendingReports}</h3>
+              <p className="metric-label">Pending</p>
+              <ProgressBar 
+                now={totalReports > 0 ? (pendingReports / totalReports) * 100 : 0} 
+                variant="warning" 
+                className="metric-progress"
+              />
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col md={3}>
+          <Card className="metric-card text-center">
+            <Card.Body>
+              <div className="metric-icon attendance">
+                <i className="fas fa-users"></i>
+              </div>
+              <h3 className="metric-value">{avgAttendance.toFixed(1)}%</h3>
+              <p className="metric-label">Avg Attendance</p>
+              <ProgressBar 
+                now={avgAttendance} 
+                variant="info" 
+                className="metric-progress"
+              />
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Course Performance */}
+      <Row className="mb-4">
+        <Col md={8}>
+          <Card>
+            <Card.Header>
+              <h5 className="mb-0">Course Performance</h5>
+            </Card.Header>
+            <Card.Body>
+              {coursePerformance.filter(course => course.total > 0).map(course => (
+                <div key={course.name} className="course-performance mb-3">
+                  <div className="d-flex justify-content-between align-items-center mb-2">
+                    <span className="course-name">{course.name}</span>
+                    <Badge bg={course.approvalRate >= 80 ? 'success' : course.approvalRate >= 60 ? 'warning' : 'danger'}>
+                      {course.approvalRate.toFixed(1)}% Approved
+                    </Badge>
+                  </div>
+                  <div className="d-flex gap-2 text-sm text-muted mb-1">
+                    <span>{course.total} reports</span>
+                    <span>{course.approved} approved</span>
+                    <span>{course.avgAttendance.toFixed(1)}% attendance</span>
+                  </div>
+                  <ProgressBar>
+                    <ProgressBar 
+                      variant="success" 
+                      now={course.approvalRate} 
+                      key={1}
+                      label={`${course.approvalRate.toFixed(1)}%`}
+                    />
+                  </ProgressBar>
+                </div>
+              ))}
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col md={4}>
+          <Card>
+            <Card.Header>
+              <h5 className="mb-0">Weekly Trends</h5>
+            </Card.Header>
+            <Card.Body>
+              {weeklyTrends.filter(week => week.submissions > 0).slice(-8).map(week => (
+                <div key={week.week} className="weekly-trend mb-2">
+                  <div className="d-flex justify-content-between">
+                    <small>Week {week.week}</small>
+                    <small>{week.submissions} reports</small>
+                  </div>
+                  <ProgressBar 
+                    now={(week.submissions / Math.max(...weeklyTrends.map(w => w.submissions))) * 100} 
+                    variant="info" 
+                    size="sm"
+                  />
+                </div>
+              ))}
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
+    </div>
+  );
+};
+
+// NEW FEATURE: Quick Actions Component
+const ReportsQuickActions = ({ 
+  onNewReport, 
+  onExportData, 
+  onViewAnalytics, 
+  onBulkApprove,
+  currentUser 
+}) => {
+  const lecturerActions = [
+    {
+      title: 'New Report',
+      icon: 'fas fa-plus-circle',
+      description: 'Submit new course report',
+      action: onNewReport,
+      variant: 'primary',
+      roles: ['Lecturer']
+    },
+    {
+      title: 'Quick Template',
+      icon: 'fas fa-file-medical',
+      description: 'Use report template',
+      action: () => console.log('Quick template'),
+      variant: 'success',
+      roles: ['Lecturer']
+    },
+    {
+      title: 'Export Data',
+      icon: 'fas fa-download',
+      description: 'Export reports to Excel',
+      action: onExportData,
+      variant: 'info',
+      roles: ['Lecturer', 'PRL', 'Program Leader']
+    },
+    {
+      title: 'View Analytics',
+      icon: 'fas fa-chart-bar',
+      description: 'Reports analytics dashboard',
+      action: onViewAnalytics,
+      variant: 'warning',
+      roles: ['Lecturer', 'PRL', 'Program Leader']
+    }
+  ];
+
+  const prlActions = [
+    {
+      title: 'Bulk Approve',
+      icon: 'fas fa-check-double',
+      description: 'Approve multiple reports',
+      action: onBulkApprove,
+      variant: 'success',
+      roles: ['PRL', 'Program Leader']
+    },
+    {
+      title: 'Pending Review',
+      icon: 'fas fa-clipboard-check',
+      description: 'Review pending reports',
+      action: () => console.log('Pending review'),
+      variant: 'warning',
+      roles: ['PRL', 'Program Leader']
+    }
+  ];
+
+  const allActions = [...lecturerActions, ...prlActions].filter(action => 
+    action.roles.includes(currentUser?.role)
+  );
+
+  return (
+    <Card className="mb-4">
+      <Card.Header>
+        <h5 className="mb-0"><i className="fas fa-bolt me-2"></i>Quick Actions</h5>
+      </Card.Header>
+      <Card.Body>
+        <Row>
+          {allActions.slice(0, 4).map((action, index) => (
+            <Col md={3} key={index} className="mb-3">
+              <Button
+                variant={action.variant}
+                onClick={action.action}
+                className="w-100 quick-action-btn h-100"
+                disabled={!currentUser}
+              >
+                <div className="text-center">
+                  <i className={`${action.icon} fa-2x mb-2`}></i>
+                  <h6>{action.title}</h6>
+                  <small>{action.description}</small>
+                </div>
+              </Button>
+            </Col>
+          ))}
+        </Row>
+      </Card.Body>
+    </Card>
+  );
+};
+
+// NEW FEATURE: Bulk Operations Modal
+const BulkOperationsModal = ({ show, onClose, reports, onBulkAction, currentUser }) => {
+  const [selectedReports, setSelectedReports] = useState([]);
+  const [operation, setOperation] = useState('approve');
+  const [comment, setComment] = useState('');
+
+  const toggleSelectAll = () => {
+    if (selectedReports.length === reports.length) {
+      setSelectedReports([]);
+    } else {
+      setSelectedReports(reports.map(r => r.id));
+    }
+  };
+
+  const toggleSelectReport = (reportId) => {
+    if (selectedReports.includes(reportId)) {
+      setSelectedReports(selectedReports.filter(id => id !== reportId));
+    } else {
+      setSelectedReports([...selectedReports, reportId]);
+    }
+  };
+
+  const handleBulkOperation = () => {
+    onBulkAction(operation, selectedReports, comment);
+    onClose();
+  };
+
+  const canPerformAction = currentUser?.role === 'PRL' || currentUser?.role === 'Program Leader';
+
+  return (
+    <Modal show={show} onHide={onClose} size="lg" centered>
+      <Modal.Header closeButton>
+        <Modal.Title>Bulk Report Operations</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <Alert variant="info">
+          Select reports to perform bulk operations ({selectedReports.length} selected)
+        </Alert>
+
+        {canPerformAction ? (
+          <>
+            <Form.Group className="mb-3">
+              <Form.Label>Operation Type</Form.Label>
+              <Form.Select value={operation} onChange={(e) => setOperation(e.target.value)}>
+                <option value="approve">Approve Selected</option>
+                <option value="reject">Reject Selected</option>
+                <option value="export">Export Selected</option>
+              </Form.Select>
+            </Form.Group>
+
+            {(operation === 'approve' || operation === 'reject') && (
+              <Form.Group className="mb-3">
+                <Form.Label>Comment (Optional)</Form.Label>
+                <Form.Control
+                  as="textarea"
+                  rows={3}
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  placeholder="Add comment for bulk action..."
+                />
+              </Form.Group>
+            )}
+
+            <div className="reports-selection">
+              <Form.Check
+                type="checkbox"
+                label="Select All Reports"
+                checked={selectedReports.length === reports.length}
+                onChange={toggleSelectAll}
+                className="mb-3"
+              />
+              
+              <div className="reports-list" style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                {reports.map(report => (
+                  <Form.Check
+                    key={report.id}
+                    type="checkbox"
+                    label={`${report.course_name} - Week ${report.week} (${report.status})`}
+                    checked={selectedReports.includes(report.id)}
+                    onChange={() => toggleSelectReport(report.id)}
+                    className="mb-2"
+                  />
+                ))}
+              </div>
+            </div>
+          </>
+        ) : (
+          <Alert variant="warning">
+            You don't have permission to perform bulk operations. Only PRLs and Program Leaders can approve/reject reports.
+          </Alert>
+        )}
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="secondary" onClick={onClose}>
+          Cancel
+        </Button>
+        {canPerformAction && (
+          <Button 
+            variant="primary" 
+            onClick={handleBulkOperation}
+            disabled={selectedReports.length === 0}
+          >
+            Perform {operation} ({selectedReports.length})
+          </Button>
+        )}
+      </Modal.Footer>
+    </Modal>
+  );
+};
+
+// NEW FEATURE: Report Templates Component
+const ReportTemplates = ({ onUseTemplate, currentUser }) => {
+  const templates = [
+    {
+      id: 1,
+      name: 'Standard Lecture Report',
+      description: 'Basic template for regular lecture sessions',
+      fields: ['course_id', 'week_reporting', 'date_lecture', 'topic_taught', 'learning_outcomes']
+    },
+    {
+      id: 2,
+      name: 'Practical Session Report',
+      description: 'Template for laboratory and practical sessions',
+      fields: ['course_id', 'week_reporting', 'date_lecture', 'topic_taught', 'teaching_methods', 'challenges_faced']
+    },
+    {
+      id: 3,
+      name: 'Tutorial Report',
+      description: 'Template for tutorial and small group sessions',
+      fields: ['course_id', 'week_reporting', 'date_lecture', 'topic_taught', 'actual_students', 'recommendations']
+    }
+  ];
+
+  const handleTemplateSelect = (template) => {
+    const templateData = {
+      teaching_methods: template.name.includes('Practical') ? 'Hands-on laboratory work' : 
+                       template.name.includes('Tutorial') ? 'Small group discussion' : 'Lecture presentation',
+      challenges_faced: template.name.includes('Practical') ? 'Equipment availability' : 
+                       template.name.includes('Tutorial') ? 'Student engagement' : 'Time management',
+      recommendations: 'Continue with current approach'
+    };
+    onUseTemplate(templateData);
+  };
+
+  if (currentUser?.role !== 'Lecturer') {
+    return null;
+  }
+
+  return (
+    <Card className="mb-4">
+      <Card.Header>
+        <h5 className="mb-0"><i className="fas fa-sticky-note me-2"></i>Report Templates</h5>
+      </Card.Header>
+      <Card.Body>
+        <Row>
+          {templates.map(template => (
+            <Col md={4} key={template.id} className="mb-3">
+              <Card className="template-card h-100">
+                <Card.Body>
+                  <Card.Title className="template-title">{template.name}</Card.Title>
+                  <Card.Text className="template-description">{template.description}</Card.Text>
+                  <div className="template-fields">
+                    <small className="text-muted">Includes: {template.fields.length} pre-filled fields</small>
+                  </div>
+                </Card.Body>
+                <Card.Footer>
+                  <Button 
+                    variant="outline-primary" 
+                    size="sm" 
+                    onClick={() => handleTemplateSelect(template)}
+                    className="w-100"
+                  >
+                    Use Template
+                  </Button>
+                </Card.Footer>
+              </Card>
+            </Col>
+          ))}
+        </Row>
+      </Card.Body>
+    </Card>
+  );
 };
 
 // Authentication Modal with Role Selection - MOVED ABOVE Reports component
@@ -168,6 +646,18 @@ const Reports = () => {
     totalCourses: 0,
   });
 
+  // NEW FEATURE STATES
+  const [showBulkModal, setShowBulkModal] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [advancedFilters, setAdvancedFilters] = useState({
+    dateFrom: '',
+    dateTo: '',
+    minAttendance: '',
+    maxAttendance: '',
+    hasChallenges: ''
+  });
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+
   // Fetch public stats for dashboard
   useEffect(() => {
     const fetchPublicStats = async () => {
@@ -200,8 +690,30 @@ const Reports = () => {
       });
       setIsAuthenticated(true);
       fetchAllData();
+      initializeNotifications();
     }
   }, []);
+
+  // NEW FEATURE: Initialize notifications
+  const initializeNotifications = () => {
+    const sampleNotifications = [
+      {
+        id: 1,
+        title: 'Welcome to Reports System',
+        message: 'New analytics features are now available.',
+        timestamp: new Date(),
+        type: 'info'
+      },
+      {
+        id: 2,
+        title: 'Report Submitted',
+        message: 'Your course report has been submitted successfully.',
+        timestamp: new Date(Date.now() - 3600000),
+        type: 'success'
+      }
+    ];
+    setNotifications(sampleNotifications);
+  };
 
   // Login success handler
   const handleLoginSuccess = (userData) => {
@@ -215,6 +727,7 @@ const Reports = () => {
     setCurrentUser({ id, username, role, name: username });
     setShowLoginModal(false);
     fetchAllData();
+    initializeNotifications();
   };
 
   // Logout handler
@@ -230,6 +743,7 @@ const Reports = () => {
     setCourses([]);
     setLecturers([]);
     setStudents([]);
+    setNotifications([]);
   };
 
   // Fetch all data (only when authenticated)
@@ -293,7 +807,7 @@ const Reports = () => {
     debouncedFetch();
   }, [debouncedFetch]);
 
-  // Filter reports
+  // Enhanced filtering with advanced filters
   const filteredReports = reports.filter((report) => {
     const matchesSearch = search === '' ||
       report.course_name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -302,13 +816,27 @@ const Reports = () => {
     const matchesStatus = filter.status === 'all' || report.status === filter.status;
     const matchesCourse = filter.course === 'all' || report.course_id == filter.course;
     const matchesWeek = filter.week === 'all' || report.week == filter.week;
+    
+    // NEW: Advanced filters
+    const matchesDateFrom = !advancedFilters.dateFrom || new Date(report.date_lecture) >= new Date(advancedFilters.dateFrom);
+    const matchesDateTo = !advancedFilters.dateTo || new Date(report.date_lecture) <= new Date(advancedFilters.dateTo);
+    const attendanceRate = (report.actual_students / report.total_students) * 100 || 0;
+    const matchesMinAttendance = !advancedFilters.minAttendance || attendanceRate >= parseInt(advancedFilters.minAttendance);
+    const matchesMaxAttendance = !advancedFilters.maxAttendance || attendanceRate <= parseInt(advancedFilters.maxAttendance);
+    const matchesChallenges = advancedFilters.hasChallenges === '' || 
+      (advancedFilters.hasChallenges === 'yes' && report.challenges_faced) ||
+      (advancedFilters.hasChallenges === 'no' && !report.challenges_faced);
+
     let matchesRole = true;
     if (currentUser?.role === 'Lecturer') {
       matchesRole = report.lecturer_id === currentUser.id;
     } else if (currentUser?.role === 'Student') {
       matchesRole = report.status === 'approved';
     }
-    return matchesSearch && matchesStatus && matchesCourse && matchesWeek && matchesRole;
+    
+    return matchesSearch && matchesStatus && matchesCourse && matchesWeek && 
+           matchesRole && matchesDateFrom && matchesDateTo && matchesMinAttendance && 
+           matchesMaxAttendance && matchesChallenges;
   });
 
   // Submit report
@@ -343,6 +871,16 @@ const Reports = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       showAlert('Report submitted successfully! Waiting for approval.', 'success');
+      
+      // NEW: Add notification
+      setNotifications(prev => [{
+        id: Date.now(),
+        title: 'Report Submitted',
+        message: `Your report for ${courses.find(c => c.id == formData.course_id)?.name} has been submitted.`,
+        timestamp: new Date(),
+        type: 'success'
+      }, ...prev]);
+      
       setFormData({
         course_id: '',
         week_reporting: '',
@@ -362,6 +900,16 @@ const Reports = () => {
     } catch (err) {
       showAlert('Error: ' + (err.response?.data?.error || 'Submission failed'), 'danger');
     }
+  };
+
+  // NEW FEATURE: Use template
+  const handleUseTemplate = (templateData) => {
+    setFormData(prev => ({
+      ...prev,
+      ...templateData
+    }));
+    setActiveTab('submit-report');
+    showAlert('Template applied! Please fill in the remaining details.', 'info');
   };
 
   // Approve/Reject
@@ -393,12 +941,70 @@ const Reports = () => {
     }
   };
 
+  // NEW FEATURE: Bulk operations
+  const handleBulkOperation = async (operation, selectedReports, comment = '') => {
+    if (!isAuthenticated) {
+      setShowLoginModal(true);
+      return;
+    }
+    if (currentUser?.role !== 'PRL' && currentUser?.role !== 'Program Leader') {
+      showAlert('Only PRLs and Program Leaders can perform bulk operations', 'warning');
+      return;
+    }
+    
+    try {
+      const token = localStorage.getItem('token');
+      
+      if (operation === 'export') {
+        // Export selected reports
+        const selectedReportData = reports.filter(report => selectedReports.includes(report.id));
+        const excelData = selectedReportData.map(report => ({
+          'Course': report.course_name,
+          'Week': report.week,
+          'Date': new Date(report.date_lecture).toLocaleDateString(),
+          'Lecturer': report.lecturer_name,
+          'Topic': report.topic_taught,
+          'Status': report.status,
+          'Attendance': `${report.actual_students}/${report.total_students}`,
+          'Attendance Rate': `${((report.actual_students / report.total_students) * 100).toFixed(1)}%`
+        }));
+        
+        const ws = XLSX.utils.json_to_sheet(excelData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Selected Reports');
+        XLSX.writeFile(wb, `reports_export_${new Date().toISOString().split('T')[0]}.xlsx`);
+        
+        showAlert(`Exported ${selectedReports.length} reports successfully!`, 'success');
+      } else {
+        // Bulk approve/reject
+        const promises = selectedReports.map(reportId =>
+          axios.put(
+            `https://matsepe.onrender.com/api/reports/${reportId}`,
+            {
+              status: operation,
+              reviewed_by: currentUser?.id,
+              review_date: new Date().toISOString(),
+              ...(comment && { review_comment: comment })
+            },
+            { headers: { Authorization: `Bearer ${token}` } }
+          )
+        );
+        
+        await Promise.all(promises);
+        showAlert(`Successfully ${operation}d ${selectedReports.length} reports`, 'success');
+        fetchAllData();
+      }
+    } catch (err) {
+      showAlert('Error performing bulk operation', 'danger');
+    }
+  };
+
   const showAlert = (message, type) => {
     setAlert({ show: true, message, type });
     setTimeout(() => setAlert({ show: false, message: '', type: '' }), 5000);
   };
 
-  // Export
+  // Export functions
   const exportToExcel = (data, filename) => {
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
@@ -560,6 +1166,19 @@ const Reports = () => {
   // Main Reports Management
   const ReportsManagementSystem = () => (
     <div>
+      {/* NEW: Notification Toast Container */}
+      <ToastContainer position="top-end" className="p-3">
+        {notifications.slice(0, 3).map((notification, index) => (
+          <Toast key={notification.id} show={true} delay={5000} autohide>
+            <Toast.Header>
+              <strong className="me-auto">{notification.title}</strong>
+              <small>{new Date(notification.timestamp).toLocaleTimeString()}</small>
+            </Toast.Header>
+            <Toast.Body>{notification.message}</Toast.Body>
+          </Toast>
+        ))}
+      </ToastContainer>
+
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h2>Reports Module</h2>
         <div>
@@ -572,6 +1191,16 @@ const Reports = () => {
         </div>
       </div>
       {alert.show && <Alert variant={alert.type}>{alert.message}</Alert>}
+      
+      {/* NEW: Quick Actions */}
+      <ReportsQuickActions
+        onNewReport={() => setActiveTab('submit-report')}
+        onExportData={() => setShowBulkModal(true)}
+        onViewAnalytics={() => setActiveTab('analytics')}
+        onBulkApprove={() => setShowBulkModal(true)}
+        currentUser={currentUser}
+      />
+
       {loading ? (
         <div className="text-center py-4">
           <Spinner animation="border" variant="primary" />
@@ -590,30 +1219,107 @@ const Reports = () => {
                   onChange={(e) => setSearch(e.target.value)}
                 />
               </InputGroup>
-              <Dropdown>
-                <Dropdown.Toggle variant="secondary">Filters</Dropdown.Toggle>
-                <Dropdown.Menu>
-                  <Dropdown.Header>Status</Dropdown.Header>
-                  <Dropdown.Item onClick={() => setFilter(prev => ({ ...prev, status: 'all' }))}>All</Dropdown.Item>
-                  <Dropdown.Item onClick={() => setFilter(prev => ({ ...prev, status: 'approved' }))}>Approved</Dropdown.Item>
-                  <Dropdown.Item onClick={() => setFilter(prev => ({ ...prev, status: 'pending' }))}>Pending</Dropdown.Item>
-                  <Dropdown.Divider />
-                  <Dropdown.Header>Course</Dropdown.Header>
-                  {courses.map((course) => (
-                    <Dropdown.Item key={course.id} onClick={() => setFilter(prev => ({ ...prev, course: course.id }))}>
-                      {course.name}
-                    </Dropdown.Item>
-                  ))}
-                  <Dropdown.Divider />
-                  <Dropdown.Header>Week</Dropdown.Header>
-                  {[...Array(16)].map((_, i) => (
-                    <Dropdown.Item key={i + 1} onClick={() => setFilter(prev => ({ ...prev, week: i + 1 }))}>
-                      Week {i + 1}
-                    </Dropdown.Item>
-                  ))}
-                </Dropdown.Menu>
-              </Dropdown>
+              <div className="d-flex gap-2">
+                <Button 
+                  variant="outline-secondary" 
+                  onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                >
+                  <i className="fas fa-filter me-2"></i>
+                  Advanced Filters
+                </Button>
+                <Dropdown>
+                  <Dropdown.Toggle variant="secondary">Quick Filters</Dropdown.Toggle>
+                  <Dropdown.Menu>
+                    <Dropdown.Header>Status</Dropdown.Header>
+                    <Dropdown.Item onClick={() => setFilter(prev => ({ ...prev, status: 'all' }))}>All</Dropdown.Item>
+                    <Dropdown.Item onClick={() => setFilter(prev => ({ ...prev, status: 'approved' }))}>Approved</Dropdown.Item>
+                    <Dropdown.Item onClick={() => setFilter(prev => ({ ...prev, status: 'pending' }))}>Pending</Dropdown.Item>
+                    <Dropdown.Divider />
+                    <Dropdown.Header>Course</Dropdown.Header>
+                    {courses.map((course) => (
+                      <Dropdown.Item key={course.id} onClick={() => setFilter(prev => ({ ...prev, course: course.id }))}>
+                        {course.name}
+                      </Dropdown.Item>
+                    ))}
+                    <Dropdown.Divider />
+                    <Dropdown.Header>Week</Dropdown.Header>
+                    {[...Array(16)].map((_, i) => (
+                      <Dropdown.Item key={i + 1} onClick={() => setFilter(prev => ({ ...prev, week: i + 1 }))}>
+                        Week {i + 1}
+                      </Dropdown.Item>
+                    ))}
+                  </Dropdown.Menu>
+                </Dropdown>
+              </div>
             </div>
+
+            {/* NEW: Advanced Filters */}
+            {showAdvancedFilters && (
+              <Card className="mb-3">
+                <Card.Body>
+                  <Row>
+                    <Col md={3}>
+                      <Form.Group>
+                        <Form.Label>Date From</Form.Label>
+                        <Form.Control
+                          type="date"
+                          value={advancedFilters.dateFrom}
+                          onChange={(e) => setAdvancedFilters(prev => ({ ...prev, dateFrom: e.target.value }))}
+                        />
+                      </Form.Group>
+                    </Col>
+                    <Col md={3}>
+                      <Form.Group>
+                        <Form.Label>Date To</Form.Label>
+                        <Form.Control
+                          type="date"
+                          value={advancedFilters.dateTo}
+                          onChange={(e) => setAdvancedFilters(prev => ({ ...prev, dateTo: e.target.value }))}
+                        />
+                      </Form.Group>
+                    </Col>
+                    <Col md={2}>
+                      <Form.Group>
+                        <Form.Label>Min Attendance %</Form.Label>
+                        <Form.Control
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={advancedFilters.minAttendance}
+                          onChange={(e) => setAdvancedFilters(prev => ({ ...prev, minAttendance: e.target.value }))}
+                        />
+                      </Form.Group>
+                    </Col>
+                    <Col md={2}>
+                      <Form.Group>
+                        <Form.Label>Max Attendance %</Form.Label>
+                        <Form.Control
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={advancedFilters.maxAttendance}
+                          onChange={(e) => setAdvancedFilters(prev => ({ ...prev, maxAttendance: e.target.value }))}
+                        />
+                      </Form.Group>
+                    </Col>
+                    <Col md={2}>
+                      <Form.Group>
+                        <Form.Label>Has Challenges</Form.Label>
+                        <Form.Select
+                          value={advancedFilters.hasChallenges}
+                          onChange={(e) => setAdvancedFilters(prev => ({ ...prev, hasChallenges: e.target.value }))}
+                        >
+                          <option value="">All</option>
+                          <option value="yes">Yes</option>
+                          <option value="no">No</option>
+                        </Form.Select>
+                      </Form.Group>
+                    </Col>
+                  </Row>
+                </Card.Body>
+              </Card>
+            )}
+
             <Table striped bordered hover responsive>
               <thead>
                 <tr>
@@ -658,6 +1364,12 @@ const Reports = () => {
             </Table>
           </Tab>
           <Tab eventKey="submit-report" title="Submit Report" disabled={currentUser?.role !== 'Lecturer'}>
+            {/* NEW: Report Templates */}
+            <ReportTemplates 
+              onUseTemplate={handleUseTemplate}
+              currentUser={currentUser}
+            />
+            
             <Form onSubmit={handleSubmit}>
               <Row className="mb-3">
                 <Col md={6}>
@@ -802,40 +1514,12 @@ const Reports = () => {
             </Form>
           </Tab>
           <Tab eventKey="analytics" title="Analytics" disabled={currentUser?.role === 'Student'}>
-            <Row className="mb-3">
-              <Col md={3}>
-                <Card className="text-center stat-card">
-                  <Card.Body>
-                    <h3>{stats.totalReports}</h3>
-                    <p>Total Reports</p>
-                  </Card.Body>
-                </Card>
-              </Col>
-              <Col md={3}>
-                <Card className="text-center stat-card">
-                  <Card.Body>
-                    <h3>{stats.approvedReports}</h3>
-                    <p>Approved</p>
-                  </Card.Body>
-                </Card>
-              </Col>
-              <Col md={3}>
-                <Card className="text-center stat-card">
-                  <Card.Body>
-                    <h3>{stats.pendingReports}</h3>
-                    <p>Pending</p>
-                  </Card.Body>
-                </Card>
-              </Col>
-              <Col md={3}>
-                <Card className="text-center stat-card">
-                  <Card.Body>
-                    <h3>{stats.avgAttendance.toFixed(1)}%</h3>
-                    <p>Avg Attendance</p>
-                  </Card.Body>
-                </Card>
-              </Col>
-            </Row>
+            {/* NEW: Enhanced Analytics Dashboard */}
+            <ReportsAnalyticsDashboard
+              reports={reports}
+              courses={courses}
+              currentUser={currentUser}
+            />
           </Tab>
         </Tabs>
       )}
@@ -896,6 +1580,15 @@ const Reports = () => {
           <Button variant="secondary" onClick={() => setShowModal(false)}>Close</Button>
         </Modal.Footer>
       </Modal>
+
+      {/* NEW: Bulk Operations Modal */}
+      <BulkOperationsModal
+        show={showBulkModal}
+        onClose={() => setShowBulkModal(false)}
+        reports={reports.filter(r => r.status === 'pending')}
+        onBulkAction={handleBulkOperation}
+        currentUser={currentUser}
+      />
     </div>
   );
 

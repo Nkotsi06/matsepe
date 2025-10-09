@@ -11,7 +11,7 @@ import ProgramLeader from './components/ProgramLeader';
 import Reports from './components/Reports';
 import Monitoring from './components/Monitoring';
 import Rating from './components/Rating';
-import backgroundImage from './assets/school.png';
+import backgroundImage from './assets/classroom-background.jpg';
 
 function App() {
   const [authVisible, setAuthVisible] = useState(false);

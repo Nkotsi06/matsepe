@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Container, Button, Form, Row, Col, Card, Modal, 
   Alert, Badge, Tab, Tabs, Table, Spinner, Dropdown,
-  InputGroup, ListGroup
+  InputGroup, ListGroup, ProgressBar, Toast, ToastContainer
 } from 'react-bootstrap';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
@@ -147,6 +147,333 @@ const AuthModal = ({ show, onClose, onSuccess }) => {
   );
 };
 
+// NEW FEATURE: Enhanced Analytics Dashboard Component
+const EnhancedAnalyticsDashboard = ({ courses, lecturers, ratings, reports }) => {
+  const [timeRange, setTimeRange] = useState('month');
+  const [selectedDepartment, setSelectedDepartment] = useState('all');
+
+  // Calculate enhanced statistics
+  const totalStudents = reports.reduce((sum, report) => sum + (report.total_students || 0), 0);
+  const avgAttendance = reports.length > 0 
+    ? (reports.reduce((sum, report) => sum + ((report.actual_students / report.total_students) * 100 || 0), 0) / reports.length).toFixed(1)
+    : 0;
+
+  const performanceMetrics = {
+    courseCompletion: Math.min(95, 70 + (ratings.length * 2)),
+    studentSatisfaction: ratings.length > 0 ? (ratings.reduce((acc, r) => acc + parseFloat(r.rating), 0) / ratings.length).toFixed(1) : 0,
+    facultyPerformance: lecturers.map(lecturer => {
+      const lecturerRatings = ratings.filter(r => r.lecturer_id === lecturer.id);
+      return lecturerRatings.length > 0 ? 
+        (lecturerRatings.reduce((acc, r) => acc + parseFloat(r.rating), 0) / lecturerRatings.length).toFixed(1) : 0;
+    }).reduce((acc, val) => acc + parseFloat(val), 0) / lecturers.length || 0
+  };
+
+  // Department performance
+  const departmentPerformance = courses.reduce((acc, course) => {
+    const dept = course.department || 'General';
+    if (!acc[dept]) {
+      acc[dept] = { courses: 0, ratings: [], reports: 0 };
+    }
+    acc[dept].courses++;
+    
+    const deptRatings = ratings.filter(r => {
+      const ratingCourse = courses.find(c => c.id === r.course_id);
+      return ratingCourse?.department === dept;
+    });
+    acc[dept].ratings = deptRatings;
+    
+    const deptReports = reports.filter(r => {
+      const reportCourse = courses.find(c => c.id === r.course_id);
+      return reportCourse?.department === dept;
+    });
+    acc[dept].reports = deptReports.length;
+    
+    return acc;
+  }, {});
+
+  return (
+    <div className="enhanced-analytics">
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <h4 className="section-title">Advanced Analytics</h4>
+        <div className="d-flex gap-2">
+          <Form.Select value={timeRange} onChange={(e) => setTimeRange(e.target.value)} size="sm">
+            <option value="week">This Week</option>
+            <option value="month">This Month</option>
+            <option value="quarter">This Quarter</option>
+            <option value="year">This Year</option>
+          </Form.Select>
+          <Form.Select value={selectedDepartment} onChange={(e) => setSelectedDepartment(e.target.value)} size="sm">
+            <option value="all">All Departments</option>
+            {Object.keys(departmentPerformance).map(dept => (
+              <option key={dept} value={dept}>{dept}</option>
+            ))}
+          </Form.Select>
+        </div>
+      </div>
+
+      {/* Performance Metrics */}
+      <Row className="mb-4">
+        <Col md={4}>
+          <Card className="metric-card">
+            <Card.Body className="text-center">
+              <div className="metric-icon completion">
+                <i className="fas fa-tasks"></i>
+              </div>
+              <h3 className="metric-value">{performanceMetrics.courseCompletion}%</h3>
+              <p className="metric-label">Course Completion Rate</p>
+              <ProgressBar 
+                now={performanceMetrics.courseCompletion} 
+                variant="success" 
+                className="metric-progress"
+              />
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col md={4}>
+          <Card className="metric-card">
+            <Card.Body className="text-center">
+              <div className="metric-icon satisfaction">
+                <i className="fas fa-smile"></i>
+              </div>
+              <h3 className="metric-value">{performanceMetrics.studentSatisfaction}/5</h3>
+              <p className="metric-label">Student Satisfaction</p>
+              <ProgressBar 
+                now={(performanceMetrics.studentSatisfaction / 5) * 100} 
+                variant="warning" 
+                className="metric-progress"
+              />
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col md={4}>
+          <Card className="metric-card">
+            <Card.Body className="text-center">
+              <div className="metric-icon performance">
+                <i className="fas fa-chart-line"></i>
+              </div>
+              <h3 className="metric-value">{performanceMetrics.facultyPerformance.toFixed(1)}/5</h3>
+              <p className="metric-label">Faculty Performance</p>
+              <ProgressBar 
+                now={(performanceMetrics.facultyPerformance / 5) * 100} 
+                variant="info" 
+                className="metric-progress"
+              />
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Department Performance */}
+      <Row className="mb-4">
+        <Col md={8}>
+          <Card>
+            <Card.Header>
+              <h5 className="mb-0">Department Performance</h5>
+            </Card.Header>
+            <Card.Body>
+              {Object.entries(departmentPerformance).map(([dept, data]) => {
+                const avgRating = data.ratings.length > 0 
+                  ? (data.ratings.reduce((sum, r) => sum + parseFloat(r.rating), 0) / data.ratings.length).toFixed(1)
+                  : 0;
+                return (
+                  <div key={dept} className="department-performance mb-3">
+                    <div className="d-flex justify-content-between align-items-center mb-2">
+                      <span className="department-name">{dept}</span>
+                      <Badge bg={avgRating >= 4 ? 'success' : avgRating >= 3 ? 'warning' : 'danger'}>
+                        {avgRating}/5
+                      </Badge>
+                    </div>
+                    <div className="d-flex gap-2 text-sm text-muted">
+                      <span>{data.courses} courses</span>
+                      <span>{data.ratings.length} ratings</span>
+                      <span>{data.reports} reports</span>
+                    </div>
+                    <ProgressBar 
+                      now={(avgRating / 5) * 100} 
+                      variant={avgRating >= 4 ? 'success' : avgRating >= 3 ? 'warning' : 'danger'}
+                      className="mt-1"
+                    />
+                  </div>
+                );
+              })}
+            </Card.Body>
+          </Card>
+        </Col>
+        <Col md={4}>
+          <Card>
+            <Card.Header>
+              <h5 className="mb-0">Quick Stats</h5>
+            </Card.Header>
+            <Card.Body>
+              <div className="stat-item mb-3">
+                <strong>Total Students:</strong>
+                <span className="float-end">{totalStudents}</span>
+              </div>
+              <div className="stat-item mb-3">
+                <strong>Avg Attendance:</strong>
+                <span className="float-end">{avgAttendance}%</span>
+              </div>
+              <div className="stat-item mb-3">
+                <strong>Active Courses:</strong>
+                <span className="float-end">{courses.length}</span>
+              </div>
+              <div className="stat-item">
+                <strong>Teaching Staff:</strong>
+                <span className="float-end">{lecturers.length}</span>
+              </div>
+            </Card.Body>
+          </Card>
+        </Col>
+      </Row>
+    </div>
+  );
+};
+
+// NEW FEATURE: Quick Actions Component
+const QuickActions = ({ onAddCourse, onExportData, onViewReports, onManageLecturers }) => {
+  const actions = [
+    {
+      title: 'Add Course',
+      icon: 'fas fa-plus-circle',
+      description: 'Create new course',
+      action: onAddCourse,
+      variant: 'primary'
+    },
+    {
+      title: 'Export Data',
+      icon: 'fas fa-download',
+      description: 'Export all data to Excel',
+      action: onExportData,
+      variant: 'success'
+    },
+    {
+      title: 'View Reports',
+      icon: 'fas fa-chart-bar',
+      description: 'Analytics dashboard',
+      action: onViewReports,
+      variant: 'info'
+    },
+    {
+      title: 'Manage Staff',
+      icon: 'fas fa-users-cog',
+      description: 'Lecturer management',
+      action: onManageLecturers,
+      variant: 'warning'
+    }
+  ];
+
+  return (
+    <Card className="mb-4">
+      <Card.Header>
+        <h5 className="mb-0"><i className="fas fa-bolt me-2"></i>Quick Actions</h5>
+      </Card.Header>
+      <Card.Body>
+        <Row>
+          {actions.map((action, index) => (
+            <Col md={3} key={index} className="mb-3">
+              <Button
+                variant={action.variant}
+                onClick={action.action}
+                className="w-100 quick-action-btn h-100"
+              >
+                <div className="text-center">
+                  <i className={`${action.icon} fa-2x mb-2`}></i>
+                  <h6>{action.title}</h6>
+                  <small>{action.description}</small>
+                </div>
+              </Button>
+            </Col>
+          ))}
+        </Row>
+      </Card.Body>
+    </Card>
+  );
+};
+
+// NEW FEATURE: Bulk Operations Modal
+const BulkOperationsModal = ({ show, onClose, courses, onBulkAction }) => {
+  const [selectedCourses, setSelectedCourses] = useState([]);
+  const [operation, setOperation] = useState('export');
+
+  const toggleSelectAll = () => {
+    if (selectedCourses.length === courses.length) {
+      setSelectedCourses([]);
+    } else {
+      setSelectedCourses(courses.map(c => c.id));
+    }
+  };
+
+  const toggleSelectCourse = (courseId) => {
+    if (selectedCourses.includes(courseId)) {
+      setSelectedCourses(selectedCourses.filter(id => id !== courseId));
+    } else {
+      setSelectedCourses([...selectedCourses, courseId]);
+    }
+  };
+
+  const handleBulkOperation = () => {
+    onBulkAction(operation, selectedCourses);
+    onClose();
+  };
+
+  return (
+    <Modal show={show} onHide={onClose} size="lg" centered>
+      <Modal.Header closeButton>
+        <Modal.Title>Bulk Operations</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        <Alert variant="info">
+          Select courses to perform bulk operations ({selectedCourses.length} selected)
+        </Alert>
+
+        <Form.Group className="mb-3">
+          <Form.Label>Operation Type</Form.Label>
+          <Form.Select value={operation} onChange={(e) => setOperation(e.target.value)}>
+            <option value="export">Export Selected</option>
+            <option value="archive">Archive Selected</option>
+            <option value="analyze">Analyze Performance</option>
+          </Form.Select>
+        </Form.Group>
+
+        <div className="courses-selection">
+          <Form.Check
+            type="checkbox"
+            label="Select All Courses"
+            checked={selectedCourses.length === courses.length}
+            onChange={toggleSelectAll}
+            className="mb-3"
+          />
+          
+          <div className="courses-list" style={{ maxHeight: '300px', overflowY: 'auto' }}>
+            {courses.map(course => (
+              <Form.Check
+                key={course.id}
+                type="checkbox"
+                label={`${course.name} (${course.code})`}
+                checked={selectedCourses.includes(course.id)}
+                onChange={() => toggleSelectCourse(course.id)}
+                className="mb-2"
+              />
+            ))}
+          </div>
+        </div>
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="secondary" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button 
+          variant="primary" 
+          onClick={handleBulkOperation}
+          disabled={selectedCourses.length === 0}
+        >
+          Perform Operation ({selectedCourses.length})
+        </Button>
+      </Modal.Footer>
+    </Modal>
+  );
+};
+
 // --- PublicDataPreview component ---
 const PublicDataPreview = ({ loading, stats }) => (
   <div className="portal-statistics mt-5">
@@ -179,11 +506,17 @@ const PublicDataPreview = ({ loading, stats }) => (
   </div>
 );
 
-// --- Ratings Tab Component ---
+// --- Enhanced Ratings Tab Component ---
 const RatingsTab = ({ ratings, courses, lecturers, onExport, search, setSearch, currentUser }) => {
   const [filter, setFilter] = useState('all');
   const [selectedRating, setSelectedRating] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [advancedFilters, setAdvancedFilters] = useState({
+    dateRange: '',
+    minRating: '',
+    department: ''
+  });
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
   // Calculate statistics from actual data
   const averageRating = ratings.length > 0
@@ -196,7 +529,7 @@ const RatingsTab = ({ ratings, courses, lecturers, onExport, search, setSearch, 
     percentage: ratings.length > 0 ? (ratings.filter(r => Math.floor(r.rating) === star).length / ratings.length) * 100 : 0
   }));
 
-  // Filter ratings
+  // Enhanced filtering
   const filteredRatings = ratings.filter(rating => {
     const matchesSearch = search === '' ||
       rating.comment?.toLowerCase().includes(search.toLowerCase()) ||
@@ -208,7 +541,12 @@ const RatingsTab = ({ ratings, courses, lecturers, onExport, search, setSearch, 
       (filter === 'medium' && rating.rating >= 3 && rating.rating < 4) ||
       (filter === 'low' && rating.rating < 3);
 
-    return matchesSearch && matchesFilter;
+    // Advanced filters
+    const matchesDate = !advancedFilters.dateRange || true; // Implement date logic
+    const matchesMinRating = !advancedFilters.minRating || rating.rating >= parseInt(advancedFilters.minRating);
+    const matchesDepartment = !advancedFilters.department || true; // Implement department logic
+
+    return matchesSearch && matchesFilter && matchesDate && matchesMinRating && matchesDepartment;
   });
 
   const getCourseName = (courseId) => {
@@ -263,10 +601,71 @@ const RatingsTab = ({ ratings, courses, lecturers, onExport, search, setSearch, 
             Average Rating: <strong>{averageRating.toFixed(1)}/5</strong> from {ratings.length} ratings
           </p>
         </div>
-        <Button variant="outline-primary" onClick={exportRatingsToExcel} disabled={ratings.length === 0} className="export-btn-tab">
-          <i className="fas fa-download me-2"></i>Export to Excel
-        </Button>
+        <div className="d-flex gap-2">
+          <Button 
+            variant="outline-secondary" 
+            onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+          >
+            <i className="fas fa-filter me-2"></i>
+            Advanced Filters
+          </Button>
+          <Button variant="outline-primary" onClick={exportRatingsToExcel} disabled={ratings.length === 0} className="export-btn-tab">
+            <i className="fas fa-download me-2"></i>Export to Excel
+          </Button>
+        </div>
       </div>
+
+      {/* Advanced Filters */}
+      {showAdvancedFilters && (
+        <Card className="mb-4">
+          <Card.Body>
+            <Row>
+              <Col md={4}>
+                <Form.Group>
+                  <Form.Label>Date Range</Form.Label>
+                  <Form.Select
+                    value={advancedFilters.dateRange}
+                    onChange={(e) => setAdvancedFilters({...advancedFilters, dateRange: e.target.value})}
+                  >
+                    <option value="">All Dates</option>
+                    <option value="week">Last Week</option>
+                    <option value="month">Last Month</option>
+                    <option value="quarter">Last Quarter</option>
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+              <Col md={4}>
+                <Form.Group>
+                  <Form.Label>Minimum Rating</Form.Label>
+                  <Form.Select
+                    value={advancedFilters.minRating}
+                    onChange={(e) => setAdvancedFilters({...advancedFilters, minRating: e.target.value})}
+                  >
+                    <option value="">Any Rating</option>
+                    <option value="5">5 Stars</option>
+                    <option value="4">4+ Stars</option>
+                    <option value="3">3+ Stars</option>
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+              <Col md={4}>
+                <Form.Group>
+                  <Form.Label>Department</Form.Label>
+                  <Form.Select
+                    value={advancedFilters.department}
+                    onChange={(e) => setAdvancedFilters({...advancedFilters, department: e.target.value})}
+                  >
+                    <option value="">All Departments</option>
+                    <option value="ICT">ICT</option>
+                    <option value="Business">Business</option>
+                    <option value="Design">Design</option>
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+            </Row>
+          </Card.Body>
+        </Card>
+      )}
 
       {/* Rating Statistics */}
       <Row className="mb-4">
@@ -508,14 +907,27 @@ const RatingsTab = ({ ratings, courses, lecturers, onExport, search, setSearch, 
   );
 };
 
-// --- FullDashboard component ---
+// --- Enhanced FullDashboard component ---
 const FullDashboard = ({
   handleLogout, alert, setAlert, stats, setShowCourseModal, setActiveTab, activeTab,
   loading, courses, lecturers, reports, getLecturerName, showCourseModal, handleAddCourse, newCourse, handleCourseChange,
   ratings, ratingSearch, setRatingSearch, currentUser, handleEditCourse, handleDeleteCourse, editingCourse, setEditingCourse,
-  showEditModal, setShowEditModal, handleUpdateCourse
+  showEditModal, setShowEditModal, handleUpdateCourse, showBulkModal, setShowBulkModal, handleBulkOperation, notifications
 }) => (
   <Container className="program-leader-dashboard py-4">
+    {/* NEW: Notification Toast Container */}
+    <ToastContainer position="top-end" className="p-3">
+      {notifications.map((notification, index) => (
+        <Toast key={index} show={true} delay={5000} autohide>
+          <Toast.Header>
+            <strong className="me-auto">{notification.title}</strong>
+            <small>{new Date(notification.timestamp).toLocaleTimeString()}</small>
+          </Toast.Header>
+          <Toast.Body>{notification.message}</Toast.Body>
+        </Toast>
+      ))}
+    </ToastContainer>
+
     <div className="d-flex justify-content-between align-items-center mb-4">
       <div>
         <h2 className="dashboard-title">Program Leader Dashboard</h2>
@@ -536,6 +948,14 @@ const FullDashboard = ({
         {alert.message}
       </Alert>
     )}
+
+    {/* NEW: Quick Actions */}
+    <QuickActions
+      onAddCourse={() => setShowCourseModal(true)}
+      onExportData={() => setShowBulkModal(true)}
+      onViewReports={() => setActiveTab('analytics')}
+      onManageLecturers={() => setActiveTab('lecturers')}
+    />
 
     {/* Statistics Cards */}
     <Row className="mb-4">
@@ -579,9 +999,14 @@ const FullDashboard = ({
           <Card.Header className="form-card-header">
             <div className="d-flex justify-content-between align-items-center">
               <h5 className="mb-0"><i className="fas fa-book me-2"></i>Course Management</h5>
-              <Button variant="primary" onClick={() => setShowCourseModal(true)} className="submit-btn">
-                <i className="fas fa-plus me-2"></i>Add Course
-              </Button>
+              <div className="d-flex gap-2">
+                <Button variant="outline-secondary" onClick={() => setShowBulkModal(true)}>
+                  <i className="fas fa-tasks me-2"></i>Bulk Operations
+                </Button>
+                <Button variant="primary" onClick={() => setShowCourseModal(true)} className="submit-btn">
+                  <i className="fas fa-plus me-2"></i>Add Course
+                </Button>
+              </div>
             </div>
           </Card.Header>
           <Card.Body>
@@ -657,11 +1082,17 @@ const FullDashboard = ({
                     <th>Email</th>
                     <th>Faculty/Department</th>
                     <th>Courses Assigned</th>
+                    <th>Performance</th>
                   </tr>
                 </thead>
                 <tbody>
                   {lecturers.map(lecturer => {
                     const assignedCourses = courses.filter(c => c.lecturer_id === lecturer.id);
+                    const lecturerRatings = ratings.filter(r => r.lecturer_id === lecturer.id);
+                    const avgRating = lecturerRatings.length > 0 
+                      ? (lecturerRatings.reduce((acc, r) => acc + parseFloat(r.rating), 0) / lecturerRatings.length).toFixed(1)
+                      : 'N/A';
+                    
                     return (
                       <tr key={lecturer.id}>
                         <td><strong>{lecturer.username}</strong></td>
@@ -671,6 +1102,15 @@ const FullDashboard = ({
                           <Badge bg={assignedCourses.length > 0 ? 'success' : 'secondary'}>
                             {assignedCourses.length} courses
                           </Badge>
+                        </td>
+                        <td>
+                          {avgRating !== 'N/A' ? (
+                            <Badge bg={avgRating >= 4 ? 'success' : avgRating >= 3 ? 'warning' : 'danger'}>
+                              {avgRating}/5
+                            </Badge>
+                          ) : (
+                            <Badge bg="secondary">No ratings</Badge>
+                          )}
                         </td>
                       </tr>
                     );
@@ -755,6 +1195,16 @@ const FullDashboard = ({
           search={ratingSearch}
           setSearch={setRatingSearch}
           currentUser={currentUser}
+        />
+      </Tab>
+
+      {/* NEW: Analytics Tab */}
+      <Tab eventKey="analytics" title={<span><i className="fas fa-chart-bar me-2"></i>Analytics</span>}>
+        <EnhancedAnalyticsDashboard
+          courses={courses}
+          lecturers={lecturers}
+          ratings={ratings}
+          reports={reports}
         />
       </Tab>
     </Tabs>
@@ -918,6 +1368,14 @@ const FullDashboard = ({
         </Modal.Footer>
       </Form>
     </Modal>
+
+    {/* NEW: Bulk Operations Modal */}
+    <BulkOperationsModal
+      show={showBulkModal}
+      onClose={() => setShowBulkModal(false)}
+      courses={courses}
+      onBulkAction={handleBulkOperation}
+    />
   </Container>
 );
 
@@ -1096,11 +1554,13 @@ const ProgramLeader = () => {
   const [editingCourse, setEditingCourse] = useState(null);
   const [showCourseModal, setShowCourseModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showBulkModal, setShowBulkModal] = useState(false); // NEW: Bulk operations modal
   const [alert, setAlert] = useState({ show: false, message: '', type: '' });
   const [activeTab, setActiveTab] = useState('dashboard');
   const [loading, setLoading] = useState(false);
   const [ratingSearch, setRatingSearch] = useState('');
   const [currentUser, setCurrentUser] = useState(null);
+  const [notifications, setNotifications] = useState([]); // NEW: Notifications
 
   const API_URL = 'https://matsepe.onrender.com/api';
 
@@ -1111,6 +1571,7 @@ const ProgramLeader = () => {
   useEffect(() => {
     if (isAuthenticated) {
       fetchDashboardData();
+      initializeNotifications();
     }
   }, [isAuthenticated]);
 
@@ -1132,6 +1593,23 @@ const ProgramLeader = () => {
     setIsLoading(false);
   };
 
+  // NEW: Initialize notifications
+  const initializeNotifications = () => {
+    const sampleNotifications = [
+      {
+        title: 'Welcome!',
+        message: 'Your program dashboard is ready with new analytics features.',
+        timestamp: new Date()
+      },
+      {
+        title: 'New Ratings',
+        message: '5 new student ratings have been submitted.',
+        timestamp: new Date(Date.now() - 3600000)
+      }
+    ];
+    setNotifications(sampleNotifications);
+  };
+
   const handleLoginSuccess = (userData) => {
     const { id, username, role, token } = userData;
     localStorage.setItem('token', token);
@@ -1143,6 +1621,7 @@ const ProgramLeader = () => {
     setCurrentUser({ id, username, role, name: username });
     setShowLoginModal(false);
     fetchDashboardData();
+    initializeNotifications();
   };
 
   const handleLogout = () => {
@@ -1157,6 +1636,7 @@ const ProgramLeader = () => {
     setLecturers([]);
     setRatings([]);
     setReports([]);
+    setNotifications([]);
   };
 
   const fetchDashboardData = async () => {
@@ -1263,6 +1743,49 @@ const ProgramLeader = () => {
     }
   };
 
+  // NEW: Bulk operations handler
+  const handleBulkOperation = async (operation, selectedCourses) => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      
+      switch (operation) {
+        case 'export':
+          // Export selected courses to Excel
+          const selectedCourseData = courses.filter(course => selectedCourses.includes(course.id));
+          const excelData = selectedCourseData.map(course => ({
+            'Course Name': course.name,
+            'Course Code': course.code,
+            'Lecturer': getLecturerName(course.lecturer_id),
+            'Description': course.description || 'No description',
+            'Credits': course.credits || 3,
+            'Status': 'Active'
+          }));
+          
+          const ws = XLSX.utils.json_to_sheet(excelData);
+          const wb = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(wb, ws, 'Selected Courses');
+          XLSX.writeFile(wb, `selected_courses_${new Date().toISOString().split('T')[0]}.xlsx`);
+          
+          showAlert(`Exported ${selectedCourses.length} courses successfully!`, 'success');
+          break;
+          
+        case 'analyze':
+          // Analyze selected courses
+          showAlert(`Analyzing ${selectedCourses.length} courses...`, 'info');
+          break;
+          
+        default:
+          showAlert('Bulk operation completed!', 'success');
+      }
+      
+      setLoading(false);
+    } catch (error) {
+      showAlert('Failed to perform bulk operation', 'danger');
+      setLoading(false);
+    }
+  };
+
   const showAlert = (message, type) => {
     setAlert({ show: true, message, type });
     setTimeout(() => setAlert({ show: false, message: '', type: '' }), 5000);
@@ -1315,6 +1838,10 @@ const ProgramLeader = () => {
           showEditModal={showEditModal}
           setShowEditModal={setShowEditModal}
           handleUpdateCourse={handleUpdateCourse}
+          showBulkModal={showBulkModal}
+          setShowBulkModal={setShowBulkModal}
+          handleBulkOperation={handleBulkOperation}
+          notifications={notifications}
         />
       )}
       

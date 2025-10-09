@@ -11,6 +11,8 @@ const Auth = ({ show, onClose, onSuccess }) => {
   const [isRegister, setIsRegister] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isClassRep, setIsClassRep] = useState(false);
+  const [selectedClass, setSelectedClass] = useState('');
 
   const resetForm = () => {
     setUsername('');
@@ -18,6 +20,8 @@ const Auth = ({ show, onClose, onSuccess }) => {
     setEmail('');
     setFacultyName('');
     setRole('Student');
+    setIsClassRep(false);
+    setSelectedClass('');
   };
 
   const toggleFormMode = () => {
@@ -58,10 +62,17 @@ const Auth = ({ show, onClose, onSuccess }) => {
 
   // ---------------- REGISTER ----------------
   const handleRegister = async () => {
-    if (!username || !password || !email || !role) {
-      setError('Please fill all required fields (username, password, email, role)');
+    // Only allow class representatives to register as students
+    if (role === 'Student' && !isClassRep) {
+      setError('Only class representatives can register. Please contact your administrator.');
       return;
     }
+
+    if (!username || !password || !email || !role) {
+      setError('Please fill all required fields');
+      return;
+    }
+
     try {
       setLoading(true);
       setError('');
@@ -70,7 +81,9 @@ const Auth = ({ show, onClose, onSuccess }) => {
         password,
         email,
         role,
-        faculty_name: facultyName || null
+        faculty_name: facultyName || null,
+        is_class_rep: isClassRep,
+        class_name: selectedClass
       });
       alert(`✅ Registered successfully: ${res.data.user.username}. You can now login.`);
       resetForm();
@@ -108,6 +121,42 @@ const Auth = ({ show, onClose, onSuccess }) => {
                   onChange={e => setEmail(e.target.value)}
                 />
               </Form.Group>
+              
+              {/* Class Representative Check for Students */}
+              {role === 'Student' && (
+                <>
+                  <Form.Group className="mb-2">
+                    <Form.Check
+                      type="checkbox"
+                      label="I am a class representative"
+                      checked={isClassRep}
+                      onChange={e => setIsClassRep(e.target.checked)}
+                    />
+                  </Form.Group>
+                  
+                  {isClassRep && (
+                    <Form.Group className="mb-2">
+                      <Form.Label>Select Your Class</Form.Label>
+                      <Form.Select
+                        value={selectedClass}
+                        onChange={e => setSelectedClass(e.target.value)}
+                      >
+                        <option value="">-- Select Class --</option>
+                        <option value="Year 1 - Computing">Year 1 - Computing</option>
+                        <option value="Year 2 - Computing">Year 2 - Computing</option>
+                        <option value="Year 3 - Computing">Year 3 - Computing</option>
+                        <option value="Year 1 - Business">Year 1 - Business</option>
+                        <option value="Year 2 - Business">Year 2 - Business</option>
+                        <option value="Year 3 - Business">Year 3 - Business</option>
+                        <option value="Year 1 - Design">Year 1 - Design</option>
+                        <option value="Year 2 - Design">Year 2 - Design</option>
+                        <option value="Year 3 - Design">Year 3 - Design</option>
+                      </Form.Select>
+                    </Form.Group>
+                  )}
+                </>
+              )}
+              
               <Form.Group className="mb-2">
                 <Form.Label>Faculty Name (optional)</Form.Label>
                 <Form.Control
@@ -132,6 +181,7 @@ const Auth = ({ show, onClose, onSuccess }) => {
               <option value="Lecturer">Lecturer</option>
               <option value="PRL">Principal Lecturer</option>
               <option value="PL">Program Leader</option>
+              <option value="FMG">Faculty Management</option>
             </Form.Select>
           </Form.Group>
         </Form>
