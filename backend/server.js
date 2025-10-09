@@ -270,14 +270,15 @@ app.use('/api/*', (req, res) => {
   });
 });
 
-// Global 404 handler
-app.use('*', (req, res) => {
+// Global 404 handler (fixed for Express v5)
+app.use((req, res) => {
   res.status(404).json({
     error: 'Route not found',
     message: `The requested route ${req.originalUrl} does not exist on this server.`,
     suggestion: 'Please check the API documentation at /api'
   });
 });
+
 
 // Global error handler
 app.use((err, req, res, next) => {
