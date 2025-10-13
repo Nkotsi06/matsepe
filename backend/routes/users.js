@@ -1,11 +1,37 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
+const { body, validationResult } = require('express-validator');
 const pool = require('../db');
 const { authenticateToken, checkRole } = require('../middleware/auth');
 
 const router = express.Router();
 
-// GET all users with enhanced filtering and search
+// Constants for better maintainability
+const USER_STATUS = ['Active', 'Inactive', 'Suspended'];
+const USER_ROLES = ['Student', 'Lecturer', 'PRL', 'Program Leader'];
+const FACULTIES = [
+  'Faculty of Information and Communication Technology',
+  'Faculty of Business Management and Globalisation', 
+  'Faculty of Design and Innovation'
+];
+
+// Validation middleware
+const validateUserCreation = [
+  body('username').isLength({ min: 3 }).withMessage('Username must be at least 3 characters'),
+  body('email').isEmail().withMessage('Valid email is required'),
+  body('role').isIn(USER_ROLES).withMessage('Invalid role'),
+  body('faculty_name').optional().isIn(FACULTIES).withMessage('Invalid faculty'),
+  body('status').optional().isIn(USER_STATUS).withMessage('Invalid status')
+];
+
+const validateUserUpdate = [
+  body('email').optional().isEmail().withMessage('Valid email is required'),
+  body('role').optional().isIn(USER_ROLES).withMessage('Invalid role'),
+  body('faculty_name').optional().isIn(FACULTIES).withMessage('Invalid faculty'),
+  body('status').optional().isIn(USER_STATUS).withMessage('Invalid status')
+];
+
+// GET all users with enhanced filtering, search and pagination
 router.get('/', authenticateToken, async (req, res) => {
   try {
     let query = `
@@ -17,6 +43,7 @@ router.get('/', authenticateToken, async (req, res) => {
       FROM users 
       WHERE 1=1
     `;
+    let countQuery = 'SELECT COUNT(*) FROM users WHERE 1=1';
     let params = [];
     let paramCount = 0;
 
@@ -25,17 +52,20 @@ router.get('/', authenticateToken, async (req, res) => {
       // Lecturers can only see students in their faculty and courses
       paramCount++;
       query += ` AND role = $${paramCount} AND faculty_name = $${paramCount + 1}`;
+      countQuery += ` AND role = $${paramCount} AND faculty_name = $${paramCount + 1}`;
       params.push('Student', req.user.faculty_name);
       paramCount++;
     } else if (req.user.role === 'PRL') {
       // PRLs can see lecturers and students in their faculty
       paramCount++;
       query += ` AND faculty_name = $${paramCount} AND role IN ('Lecturer', 'Student')`;
+      countQuery += ` AND faculty_name = $${paramCount} AND role IN ('Lecturer', 'Student')`;
       params.push(req.user.faculty_name);
     } else if (req.user.role === 'Program Leader') {
       // Program Leaders can see all users in their faculty
       paramCount++;
       query += ` AND faculty_name = $${paramCount}`;
+      countQuery += ` AND faculty_name = $${paramCount}`;
       params.push(req.user.faculty_name);
     }
 
@@ -43,24 +73,28 @@ router.get('/', authenticateToken, async (req, res) => {
     if (req.query.role) {
       paramCount++;
       query += ` AND role = $${paramCount}`;
+      countQuery += ` AND role = $${paramCount}`;
       params.push(req.query.role);
     }
 
     if (req.query.faculty_name) {
       paramCount++;
       query += ` AND faculty_name = $${paramCount}`;
+      countQuery += ` AND faculty_name = $${paramCount}`;
       params.push(req.query.faculty_name);
     }
 
     if (req.query.department) {
       paramCount++;
       query += ` AND department = $${paramCount}`;
+      countQuery += ` AND department = $${paramCount}`;
       params.push(req.query.department);
     }
 
     if (req.query.status) {
       paramCount++;
       query += ` AND status = $${paramCount}`;
+      countQuery += ` AND status = $${paramCount}`;
       params.push(req.query.status);
     }
 
@@ -74,13 +108,46 @@ router.get('/', authenticateToken, async (req, res) => {
         last_name ILIKE $${paramCount} OR
         student_id ILIKE $${paramCount}
       )`;
+      countQuery += ` AND (
+        username ILIKE $${paramCount} OR 
+        email ILIKE $${paramCount} OR 
+        first_name ILIKE $${paramCount} OR 
+        last_name ILIKE $${paramCount} OR
+        student_id ILIKE $${paramCount}
+      )`;
       params.push(`%${req.query.search}%`);
     }
 
     query += ' ORDER BY first_name ASC, last_name ASC';
-    
-    const result = await pool.query(query, params);
-    res.json(result.rows);
+
+    // Pagination
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
+    const offset = (page - 1) * limit;
+
+    paramCount++;
+    query += ` LIMIT $${paramCount}`;
+    params.push(limit);
+
+    paramCount++;
+    query += ` OFFSET $${paramCount}`;
+    params.push(offset);
+
+    // Execute queries
+    const [result, totalResult] = await Promise.all([
+      pool.query(query, params),
+      pool.query(countQuery, params.slice(0, -2)) // Remove LIMIT and OFFSET params for count
+    ]);
+
+    res.json({
+      users: result.rows,
+      pagination: {
+        page,
+        limit,
+        total: parseInt(totalResult.rows[0].count),
+        totalPages: Math.ceil(totalResult.rows[0].count / limit)
+      }
+    });
   } catch (err) {
     console.error('Users fetch error:', err);
     res.status(500).json({ error: 'Server error fetching users' });
@@ -92,6 +159,10 @@ router.get('/role/:role', authenticateToken, async (req, res) => {
   try {
     const { role } = req.params;
     
+    if (!USER_ROLES.includes(role)) {
+      return res.status(400).json({ error: 'Invalid role' });
+    }
+
     let query = `
       SELECT 
         id, username, email, role, faculty_name, department, phone,
@@ -236,22 +307,29 @@ router.get('/:id', authenticateToken, async (req, res) => {
       teachingCourses = coursesResult.rows;
     }
 
-    // Get recent activities
-    const activitiesQuery = `
-      SELECT activity_type, description, created_at 
-      FROM user_activities 
-      WHERE user_id = $1 
-      ORDER BY created_at DESC 
-      LIMIT 10
-    `;
-    const activitiesResult = await pool.query(activitiesQuery, [id]);
+    // Get recent activities from activities table (fallback if user_activities doesn't exist)
+    let recentActivities = [];
+    try {
+      const activitiesQuery = `
+        SELECT activity_type, description, created_at 
+        FROM activities 
+        WHERE user_id = $1 
+        ORDER BY created_at DESC 
+        LIMIT 10
+      `;
+      const activitiesResult = await pool.query(activitiesQuery, [id]);
+      recentActivities = activitiesResult.rows;
+    } catch (activityError) {
+      console.warn('Activities table not available:', activityError.message);
+      // Continue without activities
+    }
 
     const userData = {
       ...user,
       statistics,
       enrolled_courses: enrolledCourses,
       teaching_courses: teachingCourses,
-      recent_activities: activitiesResult.rows
+      recent_activities: recentActivities
     };
 
     res.json(userData);
@@ -262,7 +340,12 @@ router.get('/:id', authenticateToken, async (req, res) => {
 });
 
 // POST create user (Admin/Program Leader only)
-router.post('/', authenticateToken, checkRole(['Program Leader']), async (req, res) => {
+router.post('/', authenticateToken, checkRole(['Program Leader']), validateUserCreation, async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
   const client = await pool.connect();
   
   try {
@@ -280,23 +363,6 @@ router.post('/', authenticateToken, checkRole(['Program Leader']), async (req, r
       last_name,
       password = 'default123'
     } = req.body;
-
-    if (!username || !email || !role) {
-      await client.query('ROLLBACK');
-      return res.status(400).json({ error: 'Username, email, and role are required' });
-    }
-
-    // Validate faculty
-    const FACULTIES = [
-      'Faculty of Information and Communication Technology',
-      'Faculty of Business Management and Globalisation', 
-      'Faculty of Design and Innovation'
-    ];
-
-    if (faculty_name && !FACULTIES.includes(faculty_name)) {
-      await client.query('ROLLBACK');
-      return res.status(400).json({ error: 'Invalid faculty selection' });
-    }
 
     // Check if username exists
     const existingUser = await client.query(
@@ -371,7 +437,7 @@ router.post('/', authenticateToken, checkRole(['Program Leader']), async (req, r
 
         // Log enrollment activity
         await client.query(
-          `INSERT INTO user_activities (user_id, activity_type, description, created_by) 
+          `INSERT INTO activities (user_id, activity_type, description, created_by) 
            VALUES ($1, $2, $3, $4)`,
           [
             newUser.id,
@@ -388,7 +454,7 @@ router.post('/', authenticateToken, checkRole(['Program Leader']), async (req, r
 
     // Log user creation activity
     await client.query(
-      `INSERT INTO user_activities (user_id, activity_type, description, created_by) 
+      `INSERT INTO activities (user_id, activity_type, description, created_by) 
        VALUES ($1, $2, $3, $4)`,
       [newUser.id, 'user_created', 'User account created by administrator', req.user.id]
     );
@@ -401,6 +467,8 @@ router.post('/', authenticateToken, checkRole(['Program Leader']), async (req, r
     
     if (err.code === '23505') {
       res.status(400).json({ error: 'Username or email already exists' });
+    } else if (err.code === '23503') {
+      res.status(400).json({ error: 'Invalid reference data' });
     } else {
       res.status(500).json({ error: 'Server error creating user' });
     }
@@ -410,7 +478,12 @@ router.post('/', authenticateToken, checkRole(['Program Leader']), async (req, r
 });
 
 // PUT update user
-router.put('/:id', authenticateToken, checkRole(['Program Leader']), async (req, res) => {
+router.put('/:id', authenticateToken, checkRole(['Program Leader']), validateUserUpdate, async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
   const client = await pool.connect();
   
   try {
@@ -483,7 +556,7 @@ router.put('/:id', authenticateToken, checkRole(['Program Leader']), async (req,
 
     // Log user update activity
     await client.query(
-      `INSERT INTO user_activities (user_id, activity_type, description, created_by) 
+      `INSERT INTO activities (user_id, activity_type, description, created_by) 
        VALUES ($1, $2, $3, $4)`,
       [id, 'user_updated', 'User profile updated by administrator', req.user.id]
     );
@@ -493,7 +566,12 @@ router.put('/:id', authenticateToken, checkRole(['Program Leader']), async (req,
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('User update error:', err);
-    res.status(500).json({ error: 'Server error updating user' });
+    
+    if (err.code === '23505') {
+      res.status(400).json({ error: 'Duplicate entry found' });
+    } else {
+      res.status(500).json({ error: 'Server error updating user' });
+    }
   } finally {
     client.release();
   }
@@ -505,7 +583,7 @@ router.patch('/:id/status', authenticateToken, checkRole(['Program Leader']), as
     const { id } = req.params;
     const { status } = req.body;
 
-    if (!status || !['Active', 'Inactive', 'Suspended'].includes(status)) {
+    if (!status || !USER_STATUS.includes(status)) {
       return res.status(400).json({ error: 'Valid status required' });
     }
 
@@ -590,7 +668,7 @@ router.delete('/:id', authenticateToken, checkRole(['Program Leader']), async (r
 
     // Log user deletion activity
     await client.query(
-      `INSERT INTO user_activities (user_id, activity_type, description, created_by) 
+      `INSERT INTO activities (user_id, activity_type, description, created_by) 
        VALUES ($1, $2, $3, $4)`,
       [id, 'user_deactivated', 'User account deactivated by administrator', req.user.id]
     );
@@ -600,7 +678,12 @@ router.delete('/:id', authenticateToken, checkRole(['Program Leader']), async (r
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('User deletion error:', err);
-    res.status(500).json({ error: 'Server error deleting user' });
+    
+    if (err.code === '23503') {
+      res.status(400).json({ error: 'Cannot delete: User has related records' });
+    } else {
+      res.status(500).json({ error: 'Server error deleting user' });
+    }
   } finally {
     client.release();
   }
