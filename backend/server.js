@@ -11,6 +11,9 @@ dotenv.config();
 
 const app = express();
 
+// ⚠️ CRITICAL FIX: Add trust proxy for Render
+app.set('trust proxy', 1);
+
 // Security middleware
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
