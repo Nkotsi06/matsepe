@@ -33,7 +33,7 @@ body {
 .app-background {
   min-height: 100vh;
   /* Retaining original background image path */
-  background-image: url('./assets/school.png'); 
+  background-image: url('./assets/classroom-background.jpg');
   background-size: cover;
   background-position: center;
   background-attachment: fixed;
