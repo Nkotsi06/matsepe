@@ -1,4 +1,4 @@
-// server.js - FIXED FOR EXPRESS 5
+// server.js - FULLY FIXED for Render CORS + Express 5
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
@@ -10,63 +10,77 @@ const morgan = require('morgan');
 dotenv.config();
 
 const app = express();
+app.set('trust proxy', 1); // Needed for Render HTTPS handling
 
-// ⚠️ CRITICAL FIX: Add trust proxy for Render
-app.set('trust proxy', 1);
+// Security headers
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  })
+);
 
-// Security middleware
-app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" }
-}));
-
-// Rate limiting configuration
+// Rate limiters
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 1000,
-  message: {
-    error: 'Too many requests from this IP, please try again later.'
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
+  message: { error: 'Too many requests. Please try again later.' },
 });
 app.use(limiter);
 
-// More aggressive rate limiting for auth endpoints
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
-  message: {
-    error: 'Too many login attempts, please try again later.'
-  },
+  message: { error: 'Too many login attempts. Please try again later.' },
   skipSuccessfulRequests: true,
 });
-app.use('/api/auth/login', authLimiter);
-app.use('/api/auth/register', authLimiter);
+app.use('/api/auth', authLimiter);
 
-app.use(compression());
-app.use(morgan('dev'));
-
-// ✅ UPDATED CORS CONFIGURATION
-app.use(cors({
-  origin: [
-    'http://localhost:3000',
-    'http://localhost:3001',
-    'https://matsepe-1.onrender.com', // <-- ✅ added your frontend Render URL
-    'https://matsepe.onrender.com',
-    process.env.FRONTEND_URL
-  ].filter(Boolean),
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
-}));
-
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// ✅ FIXED CORS CONFIGURATION
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'https://matsepe-1.onrender.com',
+  'https://matsepe.onrender.com',
+  process.env.FRONTEND_URL,
+].filter(Boolean);
 
 app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  console.log(`🌐 [${req.method}] ${req.originalUrl} from ${req.headers.origin}`);
   next();
 });
+
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        console.warn(`🚫 Blocked CORS request from origin: ${origin}`);
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Requested-With',
+      'Accept',
+      'Origin',
+    ],
+    exposedHeaders: ['Authorization'],
+    optionsSuccessStatus: 204,
+  })
+);
+
+// ✅ Handle OPTIONS requests globally (important for preflight)
+app.options('*', cors());
+
+// Other middleware
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(compression());
+app.use(morgan('dev'));
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -92,94 +106,55 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/principal', principalRoutes);
 app.use('/api/student', studentRoutes);
 
-// API Documentation route
+// API root info
 app.get('/api', (req, res) => {
   res.json({
     message: 'Faculty Reporting System API',
-    version: '1.0.0',
-    endpoints: {
-      auth: '/api/auth',
-      courses: '/api/courses',
-      ratings: '/api/ratings',
-      reports: '/api/reports',
-      users: '/api/users',
-      classes: '/api/classes',
-      monitoring: '/api/monitoring',
-      dashboard: '/api/dashboard',
-      principal: '/api/principal',
-      student: '/api/student'
-    }
+    status: 'Running',
+    frontend: process.env.FRONTEND_URL || 'Not defined',
+    time: new Date().toISOString(),
   });
 });
 
-// Health & DB status endpoints
+// Health check route
 app.get('/api/health', async (req, res) => {
-  const healthCheck = {
+  const health = {
     status: 'OK',
-    message: 'Faculty Reporting System API is running',
     timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
     environment: process.env.NODE_ENV || 'development',
-    version: process.version
   };
-
   try {
     const db = require('./db');
     await db.query('SELECT 1');
-    healthCheck.database = 'Connected';
-  } catch (error) {
-    healthCheck.database = 'Disconnected';
-    healthCheck.status = 'Degraded';
-    healthCheck.message = 'API is running but database connection failed';
+    health.database = 'Connected';
+  } catch {
+    health.database = 'Disconnected';
+    health.status = 'Degraded';
   }
-
-  res.status(healthCheck.status === 'OK' ? 200 : 503).json(healthCheck);
+  res.status(health.status === 'OK' ? 200 : 503).json(health);
 });
 
-app.get('/api/db-status', async (req, res) => {
-  try {
-    const db = require('./db');
-    const result = await db.query('SELECT version()');
-    res.json({
-      status: 'Connected',
-      database: 'PostgreSQL',
-      version: result.rows[0].version
-    });
-  } catch (error) {
-    res.status(503).json({
-      status: 'Disconnected',
-      error: error.message
-    });
-  }
-});
-
-// 404 + error handlers remain unchanged
+// 404 handler
 app.use('/api/*', (req, res) => {
   res.status(404).json({
     error: 'Endpoint not found',
     path: req.originalUrl,
-    method: req.method,
   });
 });
 
-app.use((req, res) => {
-  res.status(404).json({
-    error: 'Route not found',
-    message: `The requested route ${req.originalUrl} does not exist.`,
-  });
-});
-
+// Global error handler
 app.use((err, req, res, next) => {
-  console.error('Server error:', err);
-  res.status(err.status || 500).json({
+  console.error('❌ Server error:', err.message);
+  res.status(500).json({
     error: 'Internal Server Error',
-    message: err.message || 'Something went wrong on our server',
+    message: err.message,
   });
 });
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
+  console.log('✅ Allowed Origins:', allowedOrigins);
 });
 
 module.exports = app;
